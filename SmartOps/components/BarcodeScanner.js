@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Vibration } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { colors, font, radius, spacing } from '../src/theme';
@@ -6,18 +6,34 @@ import { colors, font, radius, spacing } from '../src/theme';
 export default function BarcodeScanner({ onScan, onClose, hint }) {
     const [permission, requestPermission] = useCameraPermissions();
     const [scanned, setScanned] = useState(false);
+    const scanLockRef = useRef(false);
+    const resetTimerRef = useRef(null);
 
     useEffect(() => {
         if (!permission?.granted) requestPermission();
+    }, [permission?.granted, requestPermission]);
+
+    useEffect(() => {
+        return () => {
+            if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
+        };
     }, []);
 
     async function handleScan({ data, type }) {
-        if (scanned) return;
+        if (scanLockRef.current) return;
+
+        scanLockRef.current = true;
         setScanned(true);
         Vibration.vibrate(60);
         await onScan(data);
-        // small delay before allowing next scan
-        setTimeout(() => setScanned(false), 1200);
+
+        // Small cooldown prevents the same barcode from firing multiple times
+        // before the camera view is dismissed or the next scan begins.
+        resetTimerRef.current = setTimeout(() => {
+            scanLockRef.current = false;
+            setScanned(false);
+            resetTimerRef.current = null;
+        }, 1200);
     }
 
     if (!permission?.granted) {

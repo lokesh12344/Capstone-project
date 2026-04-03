@@ -528,3 +528,8 @@ Contains service wrappers for API access outside the sync engine, such as barcod
 - Improve background sync scheduling and retry behavior
 - Move mobile API configuration to environment-based app config
 - Add sync observability and operational diagnostics for production deployments
+- Build a web dashboard for business owners with analytics, operational summaries, and reporting views
+- Add richer analytics modules such as trend charts, payment breakdowns, top products, and inventory health metrics
+- Expand CRM capabilities with customer profiles, purchase history, segment-based views, and retention insights
+- Add customer engagement workflows such as follow-up reminders, loyalty tracking, and repeat-customer reporting
+- Support admin-oriented inventory workflows such as reorder recommendations, supplier tracking, and stock adjustment audit trails

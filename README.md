@@ -17,6 +17,7 @@ The system is designed as an offline-first application. The mobile app persists 
 - Product catalog with barcode, category, brand, unit, reorder level, and selling price
 - Stock batches with quantity, batch number, expiry date, and cost price
 - Stock transaction ledger for stock-in, sales, returns, and adjustments
+- Alerting support for low-stock, near-expiry, and expired-stock visibility based on current batch movement history
 - Read-only product APIs for inventory views, low-stock checks, and near-expiry queries
 
 ### Sales and Customers
@@ -198,6 +199,18 @@ For production:
 npm start
 ```
 
+Optional: seed demo business data after registering at least one business:
+
+```bash
+npm run seed:demo
+```
+
+To replace the existing operational data for the target business:
+
+```bash
+npm run seed:demo -- --reset
+```
+
 ### Mobile App Setup
 
 1. Install dependencies:
@@ -249,6 +262,8 @@ The following are optional but supported by the current codebase:
 - `JWT_EXPIRES_IN`: JWT expiration window, defaults to `30d`
 - `RATE_LIMIT_WINDOW_MS`: Rate limit window in milliseconds
 - `RATE_LIMIT_MAX`: Maximum requests per window
+- `SEED_BUSINESS_ID`: Explicit business id to target when running `seed:demo`
+- `SEED_RESET`: Set to `true` to clear the target business's operational data before seeding
 
 ### Mobile App
 
@@ -520,6 +535,8 @@ Contains service wrappers for API access outside the sync engine, such as barcod
 - Development persistence behavior can differ from a production SQLite-backed adapter.
 - Sync requires a valid JWT and a valid `businessId` restored on the device before synchronization will run.
 - The backend is the source of truth for durable persisted data; the mobile app is optimized for resilient local operation first.
+- Alert counts are driven from local WatermelonDB records and batch movement history, so low-stock and expiry indicators work offline.
+- The demo seed script creates products, batches, sales, customers, returns, wastage, low-stock, near-expiry, and expired-stock scenarios for UI testing and demos.
 
 ## Future Improvements
 

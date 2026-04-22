@@ -30,6 +30,7 @@ export default function DashboardPage({ auth }) {
     const { token, business } = auth.session;
     const [period, setPeriod] = useState('daily');
     const [activeTab, setActiveTab] = useState('overview');
+    const [activeSection, setActiveSection] = useState(null);
     const [lastUpdatedAt, setLastUpdatedAt] = useState(null);
     const [state, setState] = useState({
         dashboard: { loading: true, data: null, error: '' },
@@ -403,13 +404,6 @@ export default function DashboardPage({ auth }) {
                     </div>
                 ) : (
                     <div className="dashboard-main">
-                        <div className="section-title">
-                            <div>
-                                <p className="eyebrow">Inventory Intelligence</p>
-                                <h2>Actionable inventory decisions, not just reports</h2>
-                            </div>
-                            <p>Use these recommendations to reorder smarter, reduce stock risk, and expand the right categories.</p>
-                        </div>
 
                         {state.inventory.loading ? <LoadingBlock label="Loading inventory intelligence..." /> : null}
                         {!state.inventory.loading && state.inventory.error ? (
@@ -418,189 +412,207 @@ export default function DashboardPage({ auth }) {
                         {!state.inventory.loading && !state.inventory.error ? (
                             <>
                                 <div className="kpi-grid kpi-grid--inventory">
-                                    <KpiCard
-                                        label="Critical Reorders"
-                                        value={formatCompactNumber(inventory?.reorder?.summary?.critical_count)}
-                                        hint="Products needing urgent replenishment"
-                                        tone="amber"
-                                    />
-                                    <KpiCard
-                                        label="7-Day Stockouts"
-                                        value={formatCompactNumber(inventory?.stock_risk?.summary?.stockout_7d)}
-                                        hint="Products likely to run out in a week"
-                                        tone="rose"
-                                    />
-                                    <KpiCard
-                                        label="Expiry Risk"
-                                        value={formatCurrency(inventory?.expiry_risk?.summary?.value_at_risk_sale)}
-                                        hint="Sales value currently exposed to expiry"
-                                        tone="blue"
-                                    />
-                                    <KpiCard
-                                        label="Blocked Inventory"
-                                        value={formatCurrency(inventory?.dead_stock?.summary?.blocked_cost_value)}
-                                        hint="Cost locked in dead and slow stock"
-                                        tone="slate"
-                                    />
-                                    <KpiCard
-                                        label="Opportunity Signals"
-                                        value={formatCompactNumber(inventory?.opportunities?.summary?.opportunity_count)}
-                                        hint="Assortment and category growth suggestions"
-                                        tone="teal"
-                                    />
+                                    {[{
+                                        label: 'Critical Reorders',
+                                        value: formatCompactNumber(inventory?.reorder?.summary?.critical_count),
+                                        hint: 'Products needing urgent replenishment',
+                                        tone: 'amber',
+                                        section: 'reorder',
+                                    }, {
+                                        label: '7-Day Stockouts',
+                                        value: formatCompactNumber(inventory?.stock_risk?.summary?.stockout_7d),
+                                        hint: 'Products likely to run out in a week',
+                                        tone: 'rose',
+                                        section: 'stock-risk',
+                                    }, {
+                                        label: 'Expiry Risk',
+                                        value: formatCurrency(inventory?.expiry_risk?.summary?.value_at_risk_sale),
+                                        hint: 'Sales value currently exposed to expiry',
+                                        tone: 'blue',
+                                        section: 'expiry',
+                                    }, {
+                                        label: 'Blocked Inventory',
+                                        value: formatCurrency(inventory?.dead_stock?.summary?.blocked_cost_value),
+                                        hint: 'Cost locked in dead and slow stock',
+                                        tone: 'slate',
+                                        section: 'dead-stock',
+                                    }, {
+                                        label: 'Opportunity Signals',
+                                        value: formatCompactNumber(inventory?.opportunities?.summary?.opportunity_count),
+                                        hint: 'Assortment and category growth suggestions',
+                                        tone: 'teal',
+                                        section: 'opportunities',
+                                    }].map(card => (
+                                        <KpiCard
+                                            key={card.section}
+                                            label={card.label}
+                                            value={card.value}
+                                            hint={card.hint}
+                                            tone={card.tone}
+                                            isActive={activeSection === card.section}
+                                            onClick={() => setActiveSection(prev => prev === card.section ? null : card.section)}
+                                        />
+                                    ))}
                                 </div>
 
-                                <div className="dashboard-split dashboard-split--inventory">
-                                    <Panel title="Smart Reorder Suggestions" subtitle="What to reorder next, how much, and why">
-                                        {reorderItems.length === 0 ? (
-                                            <EmptyBlock title="No reorder suggestions right now" subtitle="Current stock cover looks healthy across tracked products." />
-                                        ) : (
-                                            <div className="insight-list">
-                                                {reorderItems.slice(0, 6).map(item => (
-                                                    <div key={item.product_id} className="insight-card">
-                                                        <div className="insight-card__top">
-                                                            <div>
-                                                                <strong>{item.name}</strong>
-                                                                <span>{item.category} · {item.current_stock} {item.unit} left</span>
+                                <div className="inventory-panel-stack">
+                                    {(activeSection === null || activeSection === 'reorder') && (
+                                        <Panel title="Smart Reorder Suggestions" subtitle="What to reorder next, how much, and why">
+                                            {reorderItems.length === 0 ? (
+                                                <EmptyBlock title="No reorder suggestions right now" subtitle="Current stock cover looks healthy across tracked products." />
+                                            ) : (
+                                                <div className="insight-list">
+                                                    {reorderItems.slice(0, 6).map(item => (
+                                                        <div key={item.product_id} className="insight-card">
+                                                            <div className="insight-card__top">
+                                                                <div>
+                                                                    <strong>{item.name}</strong>
+                                                                    <span>{item.category} · {item.current_stock} {item.unit} left</span>
+                                                                </div>
+                                                                <span className={`severity-pill severity-pill--${item.urgency}`}>{item.urgency}</span>
                                                             </div>
-                                                            <span className={`severity-pill severity-pill--${item.urgency}`}>{item.urgency}</span>
-                                                        </div>
-                                                        <div className="insight-metrics">
-                                                            <Metric label="Cover" value={formatCoverDays(item.days_of_cover) || 'No signal'} />
-                                                            <Metric label="Reorder" value={`${item.suggested_reorder_qty} ${item.unit}`} />
-                                                            <Metric label="Cost" value={formatCurrency(item.estimated_reorder_cost)} />
-                                                        </div>
-                                                        <ul className="reason-list">
-                                                            {item.reasons.slice(0, 3).map(reason => <li key={reason}>{cleanReasonText(reason)}</li>)}
-                                                        </ul>
-                                                        <p className="insight-card__action">{item.recommended_action}</p>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </Panel>
-
-                                    <Panel title="Stockout Risk" subtitle="Revenue exposed to short stock cover">
-                                        {stockRiskItems.length === 0 ? (
-                                            <EmptyBlock title="No stockout warnings" subtitle="No products are currently projected to stock out soon." />
-                                        ) : (
-                                            <div className="table-wrap">
-                                                <table>
-                                                    <thead>
-                                                        <tr>
-                                                            <th>Product</th>
-                                                            <th>Cover</th>
-                                                            <th>Risk</th>
-                                                            <th>Revenue Risk</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        {stockRiskItems.slice(0, 6).map(item => (
-                                                            <tr key={item.product_id}>
-                                                                <td>
-                                                                    <div className="customer-cell">
-                                                                        <strong>{item.name}</strong>
-                                                                        <span>{item.category}</span>
-                                                                    </div>
-                                                                </td>
-                                                                <td>{formatCoverDays(item.days_of_cover) || 'No signal'}</td>
-                                                                <td><span className={`severity-pill severity-pill--${item.risk_band}`}>{item.risk_band}</span></td>
-                                                                <td>{formatCurrency(item.estimated_revenue_risk)}</td>
-                                                            </tr>
-                                                        ))}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        )}
-                                    </Panel>
-                                </div>
-
-                                <div className="dashboard-split dashboard-split--inventory">
-                                    <Panel title="Expiry Risk" subtitle="Batches likely to expire before sell-through">
-                                        {expiryItems.length === 0 ? (
-                                            <EmptyBlock title="No risky batches" subtitle="No batches are currently projected to expire with unsold stock." />
-                                        ) : (
-                                            <div className="insight-list">
-                                                {expiryItems.slice(0, 5).map(item => (
-                                                    <div key={item.batch_id} className="insight-card">
-                                                        <div className="insight-card__top">
-                                                            <div>
-                                                                <strong>{item.name}</strong>
-                                                                <span>Batch {item.batch_no} · {item.remaining_units} units left</span>
+                                                            <div className="insight-metrics">
+                                                                <Metric label="Cover" value={formatCoverDays(item.days_of_cover) || 'No signal'} />
+                                                                <Metric label="Reorder" value={`${item.suggested_reorder_qty} ${item.unit}`} />
+                                                                <Metric label="Cost" value={formatCurrency(item.estimated_reorder_cost)} />
                                                             </div>
-                                                            <span className={`severity-pill severity-pill--${item.risk_band}`}>{item.days_until_expiry}d</span>
+                                                            <ul className="reason-list">
+                                                                {item.reasons.slice(0, 3).map(reason => <li key={reason}>{cleanReasonText(reason)}</li>)}
+                                                            </ul>
+                                                            <p className="insight-card__action">{item.recommended_action}</p>
                                                         </div>
-                                                        <div className="insight-metrics">
-                                                            <Metric label="At Risk" value={`${item.likely_unsold_units} units`} />
-                                                            <Metric label="Sale Value" value={formatCurrency(item.value_at_risk_sale)} />
-                                                            <Metric label="Daily Sales" value={item.avg_daily_sales} />
-                                                        </div>
-                                                        <p className="insight-card__action">{item.recommended_action}</p>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </Panel>
-
-                                    <Panel title="Dead Stock & Slow Movers" subtitle="Inventory tying up capital without enough movement">
-                                        {deadStockItems.length === 0 ? (
-                                            <EmptyBlock title="No dead stock issues" subtitle="Current inventory is still moving well enough." />
-                                        ) : (
-                                            <div className="table-wrap">
-                                                <table>
-                                                    <thead>
-                                                        <tr>
-                                                            <th>Product</th>
-                                                            <th>Status</th>
-                                                            <th>Days Since Sale</th>
-                                                            <th>Blocked Cost</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        {deadStockItems.slice(0, 6).map(item => (
-                                                            <tr key={item.product_id}>
-                                                                <td>
-                                                                    <div className="customer-cell">
-                                                                        <strong>{item.name}</strong>
-                                                                        <span>{item.current_stock} units in stock</span>
-                                                                    </div>
-                                                                </td>
-                                                                <td><span className={`severity-pill severity-pill--${item.status === 'dead_stock' ? 'critical' : 'medium'}`}>{item.status.replace('_', ' ')}</span></td>
-                                                                <td>{item.days_since_last_sale ?? 'No sales yet'}</td>
-                                                                <td>{formatCurrency(item.stock_cost_value)}</td>
-                                                            </tr>
-                                                        ))}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        )}
-                                    </Panel>
-                                </div>
-
-                                <Panel title="Product Opportunities" subtitle="Signals for where to expand smarter">
-                                    {opportunityItems.length === 0 ? (
-                                        <EmptyBlock title="No opportunities detected yet" subtitle="The system needs more category movement to infer assortment suggestions." />
-                                    ) : (
-                                        <div className="opportunity-grid">
-                                            {opportunityItems.map((item, index) => (
-                                                <div key={`${item.type}-${index}`} className="opportunity-card">
-                                                    <div className="opportunity-card__header">
-                                                        <span className="severity-pill severity-pill--teal">{item.type.replace('_', ' ')}</span>
-                                                        <span className="opportunity-card__confidence">{item.confidence} confidence</span>
-                                                    </div>
-                                                    <strong>{item.title}</strong>
-                                                    <p>{item.explanation}</p>
-                                                    <div className="opportunity-card__meta">
-                                                        {Object.entries(item.supporting_metrics || {}).slice(0, 3).map(([key, value]) => (
-                                                            <span key={key}>{key.replaceAll('_', ' ')}: {String(value)}</span>
-                                                        ))}
-                                                    </div>
-                                                    <p className="insight-card__action">{item.recommended_action}</p>
+                                                    ))}
                                                 </div>
-                                            ))}
-                                        </div>
+                                            )}
+                                        </Panel>
                                     )}
-                                </Panel>
+
+                                    {(activeSection === null || activeSection === 'stock-risk') && (
+                                        <Panel title="Stockout Risk" subtitle="Revenue exposed to short stock cover">
+                                            {stockRiskItems.length === 0 ? (
+                                                <EmptyBlock title="No stockout warnings" subtitle="No products are currently projected to stock out soon." />
+                                            ) : (
+                                                <div className="table-wrap">
+                                                    <table>
+                                                        <thead>
+                                                            <tr>
+                                                                <th>Product</th>
+                                                                <th>Cover</th>
+                                                                <th>Risk</th>
+                                                                <th>Revenue Risk</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {stockRiskItems.slice(0, 6).map(item => (
+                                                                <tr key={item.product_id}>
+                                                                    <td>
+                                                                        <div className="customer-cell">
+                                                                            <strong>{item.name}</strong>
+                                                                            <span>{item.category}</span>
+                                                                        </div>
+                                                                    </td>
+                                                                    <td>{formatCoverDays(item.days_of_cover) || 'No signal'}</td>                                                                    <td><span className={`severity-pill severity-pill--${item.risk_band}`}>{item.risk_band}</span></td>
+                                                                    <td>{formatCurrency(item.estimated_revenue_risk)}</td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            )}
+                                        </Panel>
+                                    )}
+
+                                    {(activeSection === null || activeSection === 'expiry') && (
+                                        <Panel title="Expiry Risk" subtitle="Batches likely to expire before sell-through">
+                                            {expiryItems.length === 0 ? (
+                                                <EmptyBlock title="No risky batches" subtitle="No batches are currently projected to expire with unsold stock." />
+                                            ) : (
+                                                <div className="insight-list">
+                                                    {expiryItems.slice(0, 5).map(item => (
+                                                        <div key={item.batch_id} className="insight-card">
+                                                            <div className="insight-card__top">
+                                                                <div>
+                                                                    <strong>{item.name}</strong>
+                                                                    <span>Batch {item.batch_no} · {item.remaining_units} units left</span>
+                                                                </div>
+                                                                <span className={`severity-pill severity-pill--${item.risk_band}`}>{item.days_until_expiry}d</span>
+                                                            </div>
+                                                            <div className="insight-metrics">
+                                                                <Metric label="At Risk" value={`${item.likely_unsold_units} units`} />
+                                                                <Metric label="Sale Value" value={formatCurrency(item.value_at_risk_sale)} />
+                                                                <Metric label="Daily Sales" value={item.avg_daily_sales} />
+                                                            </div>
+                                                            <p className="insight-card__action">{item.recommended_action}</p>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </Panel>
+                                    )}
+
+                                    {(activeSection === null || activeSection === 'dead-stock') && (
+                                        <Panel title="Dead Stock & Slow Movers" subtitle="Inventory tying up capital without enough movement">
+                                            {deadStockItems.length === 0 ? (
+                                                <EmptyBlock title="No dead stock issues" subtitle="Current inventory is still moving well enough." />
+                                            ) : (
+                                                <div className="table-wrap">
+                                                    <table>
+                                                        <thead>
+                                                            <tr>
+                                                                <th>Product</th>
+                                                                <th>Status</th>
+                                                                <th>Days Since Sale</th>
+                                                                <th>Blocked Cost</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {deadStockItems.slice(0, 6).map(item => (
+                                                                <tr key={item.product_id}>
+                                                                    <td>
+                                                                        <div className="customer-cell">
+                                                                            <strong>{item.name}</strong>
+                                                                            <span>{item.current_stock} units in stock</span>
+                                                                        </div>
+                                                                    </td>
+                                                                    <td><span className={`severity-pill severity-pill--${item.status === 'dead_stock' ? 'critical' : 'medium'}`}>{item.status.replace('_', ' ')}</span></td>
+                                                                    <td>{item.days_since_last_sale ?? 'No sales yet'}</td>
+                                                                    <td>{formatCurrency(item.stock_cost_value)}</td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            )}
+                                        </Panel>
+                                    )}
+
+                                    {(activeSection === null || activeSection === 'opportunities') && (
+                                        <Panel title="Product Opportunities" subtitle="Signals for where to expand smarter">
+                                            {opportunityItems.length === 0 ? (
+                                                <EmptyBlock title="No opportunities detected yet" subtitle="The system needs more category movement to infer assortment suggestions." />
+                                            ) : (
+                                                <div className="opportunity-grid">
+                                                    {opportunityItems.map((item, index) => (
+                                                        <div key={`${item.type}-${index}`} className="opportunity-card">
+                                                            <div className="opportunity-card__header">
+                                                                <span className="severity-pill severity-pill--teal">{item.type.replace('_', ' ')}</span>
+                                                                <span className="opportunity-card__confidence">{item.confidence} confidence</span>
+                                                            </div>
+                                                            <strong>{item.title}</strong>
+                                                            <p>{item.explanation}</p>
+                                                            <div className="opportunity-card__meta">
+                                                                {Object.entries(item.supporting_metrics || {}).slice(0, 3).map(([key, value]) => (
+                                                                    <span key={key}>{key.replaceAll('_', ' ')}: {String(value)}</span>
+                                                                ))}
+                                                            </div>
+                                                            <p className="insight-card__action">{item.recommended_action}</p>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </Panel>
+                                    )}
+                                </div>
                             </>
                         ) : null}
                     </div>
@@ -640,7 +652,6 @@ function getSalesSubtitle(period) {
 function totalPayments(totals) {
     return totals.cash + totals.upi + totals.credit;
 }
-
 function formatCoverDays(value) {
     if (value === null || value === undefined) return null;
 

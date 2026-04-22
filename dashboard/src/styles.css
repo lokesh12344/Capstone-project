@@ -179,6 +179,11 @@ button {
     grid-template-columns: 1.2fr 1fr;
 }
 
+.inventory-panel-stack {
+    display: grid;
+    gap: 20px;
+}
+
 .panel,
 .auth-card,
 .kpi,
@@ -223,6 +228,22 @@ button {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+    /* button reset */
+    text-align: left;
+    width: 100%;
+    font: inherit;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.kpi[type="button"]:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28);
+}
+
+.kpi--active {
+    background: rgba(29, 185, 122, 0.08);
+    border-color: var(--teal) !important;
+    box-shadow: 0 0 0 1px var(--teal), 0 4px 16px rgba(29, 185, 122, 0.18);
 }
 
 .kpi__label,

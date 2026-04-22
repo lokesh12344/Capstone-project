@@ -111,6 +111,31 @@ button {
     gap: 20px;
 }
 
+.dashboard-tabs {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    width: fit-content;
+    padding: 6px;
+    border-radius: 999px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+}
+
+.dashboard-tab {
+    border: 0;
+    background: transparent;
+    color: var(--text-secondary);
+    padding: 10px 16px;
+    border-radius: 999px;
+    font-weight: 700;
+}
+
+.dashboard-tab.is-active {
+    background: var(--teal);
+    color: var(--bg);
+}
+
 .kpi-grid {
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -814,5 +839,11 @@ th {
     .segment-grid,
     .insight-metrics {
         grid-template-columns: 1fr;
+    }
+
+    .dashboard-tabs {
+        width: 100%;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
     }
 }

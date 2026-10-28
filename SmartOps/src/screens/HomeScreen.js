@@ -3,6 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl, S
 import { useFocusEffect } from '@react-navigation/native';
 import { getTodaySales, getRecentOrders } from '../database/actions';
 import { useAppBadges } from '../hooks/useAppBadges';
+import { useSyncStatus } from '../hooks/useSyncStatus';
 import { AppIcon } from '../theme/icons';
 import { colors, spacing, radius, font } from '../theme';
 
@@ -15,6 +16,7 @@ export default function HomeScreen({ navigation, name }) {
     const [recentOrders, setRecentOrders] = useState([]);
     const [refreshing, setRefreshing] = useState(false);
     const [amountHidden, setAmountHidden] = useState(false);
+    const { online, syncing, hasPending } = useSyncStatus();
 
     async function load() {
         const [sales, recent] = await Promise.all([
@@ -70,6 +72,18 @@ export default function HomeScreen({ navigation, name }) {
                         <Text style={s.profileInitial}>{name.charAt(0).toUpperCase()}</Text>
                     </TouchableOpacity>
                 </View>
+
+                {/* Only shown when data isn't fully on the server yet — offline,
+                    or writes still queued. Tapping opens Profile's Sync now. */}
+                {(!online || hasPending) && (
+                    <TouchableOpacity style={s.syncPill} onPress={() => navigation.navigate('Profile')} activeOpacity={0.8}>
+                        <AppIcon name={online ? 'pending' : 'offline'} size="inline" color={colors.amber} />
+                        <Text style={s.syncPillText}>
+                            {!online ? 'Offline · sales are saved on this phone'
+                                : syncing ? 'Uploading changes…' : 'Changes waiting to upload'}
+                        </Text>
+                    </TouchableOpacity>
+                )}
 
                 {/* Today's number — the whole card opens Day Summary; the eye
                     toggle is a nested touchable and swallows its own taps. */}
@@ -197,6 +211,12 @@ function formatDateTime(ms) {
 const s = StyleSheet.create({
     root: { flex: 1, backgroundColor: colors.bg },
     scroll: { padding: spacing.lg, paddingBottom: 40 },
+    syncPill: {
+        flexDirection: 'row', alignItems: 'center', gap: spacing.xs, alignSelf: 'flex-start',
+        backgroundColor: colors.amberFaint, borderRadius: radius.full,
+        paddingHorizontal: spacing.md, paddingVertical: 6, marginBottom: spacing.md,
+    },
+    syncPillText: { color: colors.amber, fontSize: font.xs, fontWeight: '600' },
 
     header: {
         flexDirection: 'row', justifyContent: 'space-between',

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Voice Khata Brief</title>
+<link rel="stylesheet" href="brief.css">
+</head>
+<body>
+
+<div class="header">
+  <div class="kicker">Proposal 2 · Quick brief</div>
+  <h1>Offline Voice-Based Khata Entry in Hindi, Marathi and English for Kirana Stores</h1>
+  <div class="sub">Research Methodology · what we are proposing, in plain words</div>
+</div>
+
+<div class="oneline"><b>In one line:</b> can a free speech model running <b>offline on a cheap Android phone</b> correctly catch the <b>name, amount and credit/repayment</b> from a shopkeeper speaking mixed Hindi, Marathi and English, and is that faster than typing?</div>
+
+<section class="sec">
+<h2><span class="n">1</span>The problem</h2>
+<div class="grid3">
+  <div class="card orange"><h3>Typing is slow</h3><p>At a busy counter, finding the customer and typing the amount takes time. It's harder still for people not comfortable typing.</p></div>
+  <div class="card orange"><h3>No internet</h3><p>Good speech recognition usually runs in the cloud. Shops lose network, and our app is offline-first.</p></div>
+  <div class="card orange"><h3>Mixed languages</h3><p>People say "Ramesh ka 250 ka udhaar add karo", with Hindi, Marathi and English in one sentence.</p></div>
+</div>
+<p>For money, <b>only three details matter</b>: who, how much, credit or repayment. If "dhai sau" (250) is heard as "do sau" (200), the account is ₹50 off. So we judge by those details, not by word errors.</p>
+</section>
+
+<section class="sec">
+<h2><span class="n">2</span>What we are proposing</h2>
+<p>A <b>"speak entry" button</b> in SmartOps that works fully offline:</p>
+<figure>
+  <img src="../figures/p2_pipeline.png" style="width:88%">
+  <figcaption>Speak → phone turns speech into text offline → simple rules find amount and type → name matched to the shop's customer list → shopkeeper confirms → saved.</figcaption>
+</figure>
+<p>Example: <i>"Sunanda tai ne saade teen hazaar jama kele"</i> becomes <b>Sunanda Patil · ₹3,500 · Repayment</b>, and the shopkeeper taps Save.</p>
+</section>
+
+<section class="sec">
+<h2><span class="n">3</span>What we compare</h2>
+<div class="grid3">
+  <div class="card blue"><span class="tag">Baseline</span><h3>Cloud service</h3><p>Google speech-to-text. Needs internet. Our "best case" to compare with.</p></div>
+  <div class="card green"><span class="tag">Offline</span><h3>Whisper on the phone</h3><p>Free OpenAI model, "small" size, compressed to 8-bit so it fits on a cheap phone.</p></div>
+  <div class="card green"><span class="tag">Offline + hint</span><h3>Whisper + name list</h3><p>We give it the shop's customer names first, so rare names like "Sunanda" are heard right.</p></div>
+</div>
+</section>
+
+<section class="sec">
+<h2><span class="n">4</span>How we will test it</h2>
+<ol class="steps">
+  <li><b>Record about 360 clips:</b> 12 speakers (4 of us, 4 friends, 4 shopkeepers) × 30 short commands, read from cards or said in their own words. Names are made up, and we know the right answer for every clip.</li>
+  <li><b>Run every clip through all 3 setups,</b> so it's the same speech for each, a fair comparison.</li>
+  <li><b>Check:</b> is the amount right? the name? the whole entry? How long did the phone take?</li>
+  <li><b>Usability check:</b> 8–10 people do 5 entries by voice and 5 by typing. We time them and they fill a 10-question SUS form. Half start with voice, half with typing.</li>
+</ol>
+
+<div class="grid4">
+  <div class="card blue"><div class="big">₹</div><h3>Amount correct</h3><p>% of clips exactly right</p></div>
+  <div class="card blue"><div class="big">Aa</div><h3>Name correct</h3><p>right customer picked</p></div>
+  <div class="card green"><div class="big">✓</div><h3>Whole entry</h3><p>name + amount + type all right (main measure)</p></div>
+  <div class="card grey"><div class="big">s</div><h3>Time on phone</h3><p>fast enough on a cheap phone?</p></div>
+</div>
+</section>
+
+<section class="sec">
+<h2><span class="n">5</span>What we expect to show (hypotheses)</h2>
+<table>
+  <tr><th style="width:9%">#</th><th style="width:44%">In plain words</th><th style="width:22%">Test</th><th>We are wrong if…</th></tr>
+  <tr><td><b>H1</b></td><td>Cloud gets more whole entries right than offline.</td><td>McNemar</td><td>no real difference, which would be good news for offline</td></tr>
+  <tr><td><b>H2</b></td><td>Giving the customer-name list improves name accuracy.</td><td>McNemar</td><td>the list doesn't help</td></tr>
+  <tr><td><b>H3</b></td><td>Voice entry is faster than typing.</td><td>Wilcoxon</td><td>typing is as fast or faster</td></tr>
+</table>
+<div class="grid2">
+  <div class="card grey"><h3>McNemar, in one breath</h3><p>Same clip, two setups. Ignore clips both got right or both got wrong, and check if one wins the disagreements far more than 50-50.</p></div>
+  <div class="card grey"><h3>Wilcoxon, in one breath</h3><p>For each person: voice time minus typing time. Check whether "voice faster" clearly outweighs "typing faster". No bell curve needed.</p></div>
+</div>
+</section>
+
+<section class="sec">
+<h2><span class="n">6</span>What we expect to find <span class="note">(expectations, not results)</span></h2>
+<ul>
+  <li>Cloud will be somewhat better. The question is <i>how big</i> the gap is. A small gap makes offline practical, especially with the confirm screen.</li>
+  <li>Most mistakes will be in names and number words like "dhai", "saade", "paune". Mixed-language and noisy-shop clips will be harder.</li>
+  <li>The name list should clearly improve name accuracy.</li>
+  <li>Voice should be faster for most people. Some may prefer typing for privacy, since saying a customer's debt aloud can be awkward.</li>
+</ul>
+</section>
+
+<section class="sec">
+<h2><span class="n">7</span>Plan and cost</h2>
+<div class="grid2">
+  <div class="card blue"><h3>12 weeks</h3><p>Weeks 1–3: cards, forms, approval · 3–5: record clips · 3–7: build the voice feature · 6–8: run the setups · 8–9: usability test · 9–12: analysis and report.</p></div>
+  <div class="card green"><h3>About ₹11,000</h3><p>Cheap Android phone ₹6,000, cloud usage ₹500, small thank-you payments to shopkeepers, printing and travel. Consent forms in Hindi, Marathi and English; clips stored as codes, not names.</p></div>
+</div>
+</section>
+
+<section class="sec">
+<h2><span class="n">8</span>Say it in 30 seconds</h2>
+<div class="pitch"><div class="label">Pitch</div>
+<p>"Shopkeepers find typing khata entries slow at a busy counter. Speaking is faster, but speech recognition usually needs internet. We're testing whether a free model, Whisper, running fully offline on a cheap Android phone can get the name, amount and credit-or-repayment right, even in mixed Hindi, Marathi and English. We'll record about 360 commands and compare offline against a cloud service, with and without a customer-name hint, judging by whether the whole entry is right. Then 8 to 10 people try voice versus typing. The output is an offline voice feature in SmartOps and honest numbers on how well it works."</p></div>
+</section>
+
+<section class="sec long">
+<h2><span class="n">9</span>Tough questions, quick answers</h2>
+<div class="qa"><div class="q">"Why not just use Google's cloud?"</div><div class="a">We do, as the comparison. But the app must work without internet, so the real question is how close offline gets.</div></div>
+<div class="qa"><div class="q">"360 clips is tiny."</div><div class="a">It's small for training but fine for testing. Every clip goes through every setup, so comparisons are paired, and McNemar only needs the disagreements.</div></div>
+<div class="qa"><div class="q">"Why only 8–10 people?"</div><div class="a">Each person uses both methods, so we compare people with themselves. That's a normal size for a first usability check.</div></div>
+<div class="qa"><div class="q">"Doesn't the confirm screen defeat the purpose?"</div><div class="a">No. Checking one line and tapping Save is still much faster than typing, and it keeps money entries safe.</div></div>
+<div class="qa"><div class="q">"Why rules, not ChatGPT, to pick out details?"</div><div class="a">Rules work offline, are fast, and are easy to check and explain.</div></div>
+</section>
+
+<div class="foot">Full proposal: Research_Proposal_2_Voice_Khata.pdf · Detailed viva notes: explainer_voice.md</div>
+</body>
+</html>

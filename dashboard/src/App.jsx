@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
+import { useTheme } from './lib/theme';
 import {
     clearSession,
     getStoredSession,
@@ -10,6 +11,7 @@ import {
 
 export default function App() {
     const [session, setSession] = useState(() => getStoredSession());
+    const { theme, toggle } = useTheme();
 
     const auth = useMemo(() => ({
         session,
@@ -27,11 +29,11 @@ export default function App() {
         <Routes>
             <Route
                 path="/login"
-                element={session ? <Navigate to="/dashboard" replace /> : <LoginPage auth={auth} />}
+                element={session ? <Navigate to="/dashboard" replace /> : <LoginPage auth={auth} theme={theme} onToggleTheme={toggle} />}
             />
             <Route
-                path="/dashboard"
-                element={session ? <DashboardPage auth={auth} /> : <Navigate to="/login" replace />}
+                path="/dashboard/*"
+                element={session ? <DashboardPage auth={auth} theme={theme} onToggleTheme={toggle} /> : <Navigate to="/login" replace />}
             />
             <Route
                 path="*"

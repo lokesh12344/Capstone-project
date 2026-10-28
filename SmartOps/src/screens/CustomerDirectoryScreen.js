@@ -1,21 +1,24 @@
 import React, { useState, useCallback } from 'react';
 import {
     View, Text, ScrollView, TouchableOpacity, TextInput,
-    StyleSheet, RefreshControl, Modal, KeyboardAvoidingView, Platform, Keyboard, Alert,
+    StyleSheet, RefreshControl, Modal, KeyboardAvoidingView, Platform, Keyboard, Alert, Linking,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import {
     getAllCustomersDirectory, createCustomer, updateCustomerDetails,
     getCustomerBalance, getCustomerOrderSummary,
+    findPossibleDuplicates, setCustomerArchived,
 } from '../database/actions';
+import { openWhatsApp } from '../services/share';
 import { PrimaryButton, GhostButton, EmptyState } from '../../components/UI';
 import { AppIcon } from '../theme/icons';
 import { colors, spacing, radius, font } from '../theme';
 
-export default function CustomerDirectoryScreen({ navigation }) {
+export default function CustomerDirectoryScreen({ navigation, route }) {
     const [customers, setCustomers] = useState([]);
     const [search, setSearch] = useState('');
     const [refreshing, setRefreshing] = useState(false);
+    const [showArchived, setShowArchived] = useState(false);
 
     const [editing, setEditing] = useState(null);   // existing customer, or {} for "new"
     const [form, setForm] = useState({ name: '', phone: '', address: '' });
@@ -23,10 +26,22 @@ export default function CustomerDirectoryScreen({ navigation }) {
     const [saving, setSaving] = useState(false);
 
     const load = useCallback(async () => {
-        setCustomers(await getAllCustomersDirectory());
-    }, []);
+        const rows = await getAllCustomersDirectory({ includeArchived: showArchived });
+        setCustomers(rows);
+        return rows;
+    }, [showArchived]);
 
-    useFocusEffect(useCallback(() => { load(); }, [load]));
+    // Other screens (Khata's "Edit details") can open one customer directly.
+    const openId = route?.params?.openId;
+    useFocusEffect(useCallback(() => {
+        load().then(rows => {
+            if (!openId) return;
+            const match = rows.find(c => c.id === openId);
+            if (match) openCustomer(match);
+            navigation.setParams({ openId: undefined });
+        });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [load, openId]));
 
     async function onRefresh() {
         setRefreshing(true);
@@ -35,6 +50,7 @@ export default function CustomerDirectoryScreen({ navigation }) {
     }
 
     const filtered = customers.filter(c => {
+        if (showArchived !== !!c.archivedAt) return false;
         const q = search.trim().toLowerCase();
         if (!q) return true;
         return (
@@ -67,9 +83,29 @@ export default function CustomerDirectoryScreen({ navigation }) {
         setProfile(null);
     }
 
-    async function saveCustomer() {
+    async function saveCustomer({ skipDuplicateCheck = false } = {}) {
         const name = form.name.trim();
+        const phone = form.phone.trim();
         if (!name) return Alert.alert('Name required', 'Enter a customer name.');
+        if (phone && phone.replace(/\D/g, '').length !== 10) {
+            return Alert.alert('Check the phone number', 'Enter a 10-digit number, or leave it empty.');
+        }
+
+        if (!skipDuplicateCheck) {
+            const dupes = await findPossibleDuplicates({ name, phone, excludeId: editing?.id });
+            if (dupes.length > 0) {
+                const d = dupes[0];
+                return Alert.alert(
+                    'Customer may already exist',
+                    `${d.name}${d.phone ? ` · ${d.phone}` : ''} is already saved. Add anyway?`,
+                    [
+                        { text: 'Open existing', onPress: () => openCustomer(d) },
+                        { text: 'Save anyway', onPress: () => saveCustomer({ skipDuplicateCheck: true }) },
+                        { text: 'Cancel', style: 'cancel' },
+                    ]
+                );
+            }
+        }
 
         setSaving(true);
         try {
@@ -77,13 +113,13 @@ export default function CustomerDirectoryScreen({ navigation }) {
                 await updateCustomerDetails({
                     customerId: editing.id,
                     name,
-                    phone: form.phone.trim(),
+                    phone,
                     address: form.address.trim(),
                 });
             } else {
                 await createCustomer({
                     name,
-                    phone: form.phone.trim(),
+                    phone,
                     address: form.address.trim(),
                 });
             }
@@ -95,6 +131,36 @@ export default function CustomerDirectoryScreen({ navigation }) {
         } finally {
             setSaving(false);
         }
+    }
+
+    function toggleArchived() {
+        const customer = editing;
+        const archiving = !customer.archivedAt;
+        if (!archiving) {
+            return setCustomerArchived(customer.id, false).then(() => { closeModal(); load(); });
+        }
+        Alert.alert(
+            'Remove customer',
+            `${customer.name} will be hidden from customer lists and search. Their past bills stay in Records. You can restore them later.`,
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Remove', style: 'destructive', onPress: async () => {
+                        try {
+                            await setCustomerArchived(customer.id, true);
+                            closeModal();
+                            load();
+                        } catch (e) {
+                            if (e.code === 'HAS_BALANCE') {
+                                Alert.alert('Khata still open', `${customer.name} still owes money. Settle their khata first.`);
+                            } else {
+                                Alert.alert('Error', 'Could not remove customer.');
+                            }
+                        }
+                    },
+                },
+            ]
+        );
     }
 
     return (
@@ -122,11 +188,17 @@ export default function CustomerDirectoryScreen({ navigation }) {
                     onChangeText={setSearch}
                 />
 
+                <TouchableOpacity onPress={() => setShowArchived(v => !v)} style={s.archivedToggle}>
+                    <Text style={s.archivedToggleText}>
+                        {showArchived ? '‹ Back to active customers' : 'Show removed customers'}
+                    </Text>
+                </TouchableOpacity>
+
                 {filtered.length === 0 ? (
                     <EmptyState
                         icon={<AppIcon name="customers" size={40} color={colors.textMuted} />}
-                        title="No customers yet"
-                        subtitle="Add one here, or they'll be added automatically during a sale."
+                        title={showArchived ? 'No removed customers' : 'No customers yet'}
+                        subtitle={showArchived ? 'Customers you remove show up here.' : "Add one here, or they'll be added automatically during a sale."}
                     />
                 ) : (
                     filtered.map(c => (
@@ -158,6 +230,19 @@ export default function CustomerDirectoryScreen({ navigation }) {
                                     <AppIcon name="close" size="chip" color={colors.red} />
                                 </TouchableOpacity>
                             </View>
+
+                            {!!editing?.phone && (
+                                <View style={s.contactRow}>
+                                    <TouchableOpacity style={s.contactBtn} onPress={() => Linking.openURL(`tel:${editing.phone}`)}>
+                                        <AppIcon name="phone" size="chip" color={colors.teal} />
+                                        <Text style={s.contactBtnText}>Call</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity style={s.contactBtn} onPress={() => openWhatsApp(editing.phone, `Namaste ${editing.name} ji,`)}>
+                                        <AppIcon name="whatsapp" size="chip" color={colors.teal} />
+                                        <Text style={s.contactBtnText}>WhatsApp</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            )}
 
                             {profile && (
                                 <View style={s.profileRow}>
@@ -207,8 +292,17 @@ export default function CustomerDirectoryScreen({ navigation }) {
                                 placeholderTextColor={colors.textMuted}
                             />
 
-                            <PrimaryButton label="Save" onPress={saveCustomer} loading={saving} style={{ marginTop: spacing.lg }} />
-                            <GhostButton label="Cancel" onPress={closeModal} style={{ marginTop: spacing.sm }} />
+                            <PrimaryButton label="Save" onPress={() => saveCustomer()} loading={saving} style={{ marginTop: spacing.lg }} />
+                            {editing?.id ? (
+                                <GhostButton
+                                    label={editing.archivedAt ? 'Restore customer' : 'Remove customer'}
+                                    color={editing.archivedAt ? colors.teal : colors.red}
+                                    onPress={toggleArchived}
+                                    style={{ marginTop: spacing.sm }}
+                                />
+                            ) : (
+                                <GhostButton label="Cancel" onPress={closeModal} style={{ marginTop: spacing.sm }} />
+                            )}
                         </TouchableOpacity>
                     </TouchableOpacity>
                 </KeyboardAvoidingView>
@@ -236,6 +330,16 @@ const s = StyleSheet.create({
         paddingHorizontal: spacing.md, paddingVertical: 12,
         marginBottom: spacing.lg,
     },
+
+    archivedToggle: { alignSelf: 'flex-end', marginTop: -spacing.sm, marginBottom: spacing.md },
+    archivedToggleText: { color: colors.textSecondary, fontSize: font.xs, fontWeight: '600' },
+
+    contactRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md },
+    contactBtn: {
+        flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs,
+        backgroundColor: colors.tealFaint, borderRadius: radius.md, paddingVertical: spacing.sm,
+    },
+    contactBtnText: { color: colors.teal, fontSize: font.sm, fontWeight: '700' },
 
     row: {
         flexDirection: 'row', alignItems: 'center',

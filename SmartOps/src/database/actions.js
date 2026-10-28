@@ -4,6 +4,17 @@ import { getBusinessId, syncAfterWrite } from '../sync/syncEngine';
 
 const PENDING = 'pending';
 
+// Soft deletes: archived products/customers/suppliers and voided sales stay in
+// the DB (history, bills and khata still resolve them) but drop out of lists.
+// Filtered in JS rather than Q.where(col, null) — rows written before schema
+// v6 have no value for the column at all.
+const active = rows => rows.filter(r => !r.archivedAt);
+const notVoided = orders => orders.filter(o => !o.voidedAt);
+
+// The khata ledger only has credit_sale/repayment, so voiding a credit bill is
+// booked as a repayment carrying this note (and isn't counted as cash in).
+export const VOID_NOTE = 'Bill voided';
+
 // ── Products ──────────────────────────────────────────────────────────────────
 
 export async function registerProduct({
@@ -67,11 +78,90 @@ export async function getProductById(id) {
     }
 }
 
-export async function getAllProducts() {
+export async function getAllProducts({ includeArchived = false } = {}) {
     const bId = getBusinessId();
-    return database.get('products')
+    const rows = await database.get('products')
         .query(Q.where('business_id', bId))
         .fetch();
+    return includeArchived ? rows : active(rows);
+}
+
+// Clearance discount: the normal price is parked in regular_price and
+// selling_price drops to the sale price, so New Order, bills and khata all
+// pick it up with no other changes. Re-discounting keeps the original
+// regular price; endProductDiscount puts it back.
+export async function setProductDiscount(productId, salePrice, { days } = {}) {
+    const now = Date.now();
+    const result = await database.write(async () => {
+        const product = await database.get('products').find(productId);
+        return product.update(p => {
+            if (!p.regularPrice) p.regularPrice = p.sellingPrice;
+            p.sellingPrice = salePrice;
+            p.saleUntil = days ? now + days * 86400000 : null;
+            p.syncStatus = PENDING;
+            p.updatedAt = now;
+        });
+    });
+    syncAfterWrite();
+    return result;
+}
+
+export async function endProductDiscount(productId) {
+    const now = Date.now();
+    const result = await database.write(async () => {
+        const product = await database.get('products').find(productId);
+        return product.update(p => {
+            if (p.regularPrice) p.sellingPrice = p.regularPrice;
+            p.regularPrice = null;
+            p.saleUntil = null;
+            p.syncStatus = PENDING;
+            p.updatedAt = now;
+        });
+    });
+    syncAfterWrite();
+    return result;
+}
+
+// Timed sales end on their own: run on app start and when Inventory opens.
+// Returns how many products went back to their normal price.
+export async function expireEndedDiscounts() {
+    const now = Date.now();
+    const bId = getBusinessId();
+    if (!bId) return 0;
+    const rows = await database.get('products')
+        .query(Q.where('business_id', bId))
+        .fetch();
+    const ended = rows.filter(p => p.regularPrice && p.saleUntil && p.saleUntil <= now);
+    if (ended.length === 0) return 0;
+    await database.write(async () => {
+        for (const product of ended) {
+            await product.update(p => {
+                p.sellingPrice = p.regularPrice;
+                p.regularPrice = null;
+                p.saleUntil = null;
+                p.syncStatus = PENDING;
+                p.updatedAt = now;
+            });
+        }
+    });
+    syncAfterWrite();
+    return ended.length;
+}
+
+// Discontinued items leave Inventory, Alerts, Reorder and the sale/PO pickers;
+// pass archived=false to bring one back.
+export async function setProductArchived(productId, archived) {
+    const now = Date.now();
+    const result = await database.write(async () => {
+        const product = await database.get('products').find(productId);
+        return product.update(p => {
+            p.archivedAt = archived ? now : null;
+            p.syncStatus = PENDING;
+            p.updatedAt = now;
+        });
+    });
+    syncAfterWrite();
+    return result;
 }
 
 // ── Stock In ──────────────────────────────────────────────────────────────────
@@ -206,6 +296,57 @@ export async function recordSale({ customerId, items, paymentMode }) {
     return result;
 }
 
+// Undo a wrong bill without deleting it: the order is stamped voided_at and
+// stays in Records, every item goes back on its batch as a 'return'
+// transaction, and a credit sale gets a matching khata entry so the customer no
+// longer owes it.
+export async function voidSale(orderId) {
+    const bId = getBusinessId();
+    const now = Date.now();
+
+    await database.write(async () => {
+        const order = await database.get('sale_orders').find(orderId);
+        if (order.voidedAt) return;
+
+        const items = await database.get('sale_items')
+            .query(Q.where('order_id', orderId))
+            .fetch();
+        for (const item of items) {
+            await database.get('stock_transactions').create(t => {
+                t.productId = item.productId;
+                t.batchId = item.batchId;
+                t.type = 'return';
+                t.quantity = item.quantity;
+                t.txnAt = now;
+                t.syncStatus = PENDING;
+                t.updatedAt = now;
+            });
+        }
+
+        if (order.paymentMode === 'credit' && order.customerId) {
+            await database.get('ledger_entries').create(e => {
+                e.businessId = bId;
+                e.customerId = order.customerId;
+                e.orderId = order.id;
+                e.type = 'repayment';
+                e.amount = order.totalAmount;
+                e.note = VOID_NOTE;
+                e.entryAt = now;
+                e.syncStatus = PENDING;
+                e.updatedAt = now;
+            });
+        }
+
+        await order.update(o => {
+            o.voidedAt = now;
+            o.syncStatus = PENDING;
+            o.updatedAt = now;
+        });
+    });
+
+    syncAfterWrite();
+}
+
 // ── Customers ─────────────────────────────────────────────────────────────────
 
 export async function upsertCustomer({ name, phone }) {
@@ -243,9 +384,9 @@ export async function searchCustomers(query) {
     const q = (query || '').trim().toLowerCase();
     if (!q) return [];
 
-    const all = await database.get('customers')
+    const all = active(await database.get('customers')
         .query(Q.where('business_id', bId))
-        .fetch();
+        .fetch());
 
     return all
         .filter(c =>
@@ -301,19 +442,55 @@ export async function updateCustomerDetails({ customerId, name, phone, address }
 }
 
 // Full customer list for the Customer Directory screen, sorted by name.
-export async function getAllCustomersDirectory() {
+export async function getAllCustomersDirectory({ includeArchived = false } = {}) {
     const bId = getBusinessId();
     const rows = await database.get('customers')
         .query(Q.where('business_id', bId))
         .fetch();
-    return rows.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    return (includeArchived ? rows : active(rows))
+        .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+}
+
+// Active customers with the same name (ignoring case/spacing) or the same
+// phone — shown as "already exists?" before a new one is added.
+export async function findPossibleDuplicates({ name, phone, excludeId }) {
+    const bId = getBusinessId();
+    const squash = s => (s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    const n = squash(name);
+    const digits = (phone || '').replace(/\D/g, '');
+    const rows = active(await database.get('customers')
+        .query(Q.where('business_id', bId))
+        .fetch());
+    return rows.filter(c => c.id !== excludeId && (
+        (n && squash(c.name) === n) ||
+        (digits.length === 10 && (c.phone || '').replace(/\D/g, '') === digits)
+    ));
+}
+
+// Hide a customer (duplicate, moved away). Refused while they still owe money,
+// otherwise their khata would silently drop off the Khata tab.
+export async function setCustomerArchived(customerId, archived) {
+    if (archived && (await getCustomerBalance(customerId)) > 0.005) {
+        throw Object.assign(new Error('Customer has an outstanding khata balance'), { code: 'HAS_BALANCE' });
+    }
+    const now = Date.now();
+    const result = await database.write(async () => {
+        const customer = await database.get('customers').find(customerId);
+        return customer.update(c => {
+            c.archivedAt = archived ? now : null;
+            c.syncStatus = PENDING;
+            c.updatedAt = now;
+        });
+    });
+    syncAfterWrite();
+    return result;
 }
 
 // Lifetime order count + total spend for a customer's directory profile.
 export async function getCustomerOrderSummary(customerId) {
-    const orders = await database.get('sale_orders')
+    const orders = notVoided(await database.get('sale_orders')
         .query(Q.where('customer_id', customerId))
-        .fetch();
+        .fetch());
     return {
         orderCount: orders.length,
         totalSpend: orders.reduce((sum, o) => sum + o.totalAmount, 0),
@@ -385,6 +562,26 @@ export async function getOutstandingCustomers() {
         .map(([id, balance]) => ({ customer: customerMap.get(id), balance }))
         .filter(row => row.customer)
         .sort((a, b) => b.balance - a.balance);
+}
+
+// Customers who once had khata but owe nothing now, so their history is still
+// reachable from the Khata tab.
+export async function getSettledKhataCustomers() {
+    const bId = getBusinessId();
+    const entries = await database.get('ledger_entries')
+        .query(Q.where('business_id', bId))
+        .fetch();
+    const balanceByCustomer = {};
+    for (const e of entries) {
+        balanceByCustomer[e.customerId] = (balanceByCustomer[e.customerId] || 0) + e.signedAmount;
+    }
+    const settled = Object.entries(balanceByCustomer).filter(([, bal]) => bal <= 0.005);
+    if (settled.length === 0) return [];
+    const customerMap = await getCustomersByIds(settled.map(([id]) => id));
+    return settled
+        .map(([id]) => ({ customer: customerMap.get(id), balance: 0 }))
+        .filter(row => row.customer)
+        .sort((a, b) => (a.customer.name || '').localeCompare(b.customer.name || ''));
 }
 
 export async function getCustomerByPhone(phone) {
@@ -471,9 +668,9 @@ export async function getNearExpiryBatches(days = 30) {
     const now = Date.now();
     const cutoff = now + days * 86400000;
 
-    const products = await database.get('products')
+    const products = active(await database.get('products')
         .query(Q.where('business_id', bId))
-        .fetch();
+        .fetch());
 
     const productIds = products.map(product => product.id);
     if (productIds.length === 0) return [];
@@ -493,12 +690,12 @@ export async function getTodaySales() {
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
 
-    const orders = await database.get('sale_orders')
+    const orders = notVoided(await database.get('sale_orders')
         .query(
             Q.where('business_id', bId),
             Q.where('sale_at', Q.gte(startOfDay.getTime()))
         )
-        .fetch();
+        .fetch());
 
     const total = orders.reduce((s, o) => s + o.totalAmount, 0);
     return { count: orders.length, total };
@@ -510,13 +707,14 @@ export async function getTodaySales() {
 // row shows one or the other instead of the order id.
 export async function getRecentOrders(limit = 4) {
     const bId = getBusinessId();
-    const orders = await database.get('sale_orders')
+    // Over-fetch a little so voided bills don't leave the list short.
+    const orders = notVoided(await database.get('sale_orders')
         .query(
             Q.where('business_id', bId),
             Q.sortBy('sale_at', Q.desc),
-            Q.take(limit)
+            Q.take(limit * 3)
         )
-        .fetch();
+        .fetch()).slice(0, limit);
 
     if (orders.length === 0) return [];
 
@@ -547,9 +745,9 @@ export async function getDaySummary() {
     startOfDay.setHours(0, 0, 0, 0);
     const start = startOfDay.getTime();
 
-    const orders = await database.get('sale_orders')
+    const orders = notVoided(await database.get('sale_orders')
         .query(Q.where('business_id', bId), Q.where('sale_at', Q.gte(start)))
-        .fetch();
+        .fetch());
 
     const revenue = orders.reduce((sum, o) => sum + o.totalAmount, 0);
     const byMode = { cash: 0, upi: 0, credit: 0 };
@@ -576,19 +774,19 @@ export async function getDaySummary() {
         .query(Q.where('business_id', bId), Q.where('entry_at', Q.gte(start)))
         .fetch();
     const creditGiven = ledgerToday.filter(e => e.type === 'credit_sale').reduce((sum, e) => sum + e.amount, 0);
-    const repaid = ledgerToday.filter(e => e.type === 'repayment').reduce((sum, e) => sum + e.amount, 0);
+    const repaid = ledgerToday.filter(e => e.type === 'repayment' && e.note !== VOID_NOTE).reduce((sum, e) => sum + e.amount, 0);
 
     return { orderCount: orders.length, revenue, byMode, itemsSold, wastageUnits, creditGiven, repaid };
 }
 
 // ── Suppliers & purchase orders ─────────────────────────────────────────────────
 
-export async function getSuppliers() {
+export async function getSuppliers({ includeArchived = false } = {}) {
     const bId = getBusinessId();
     const rows = await database.get('suppliers')
         .query(Q.where('business_id', bId))
         .fetch();
-    return rows.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    return (includeArchived ? rows : active(rows)).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 }
 
 export async function getSupplierById(id) {
@@ -625,6 +823,20 @@ export async function saveSupplier({ supplierId, name, phone, note }) {
         });
     });
 
+    syncAfterWrite();
+    return result;
+}
+
+export async function setSupplierArchived(supplierId, archived) {
+    const now = Date.now();
+    const result = await database.write(async () => {
+        const supplier = await database.get('suppliers').find(supplierId);
+        return supplier.update(sp => {
+            sp.archivedAt = archived ? now : null;
+            sp.syncStatus = PENDING;
+            sp.updatedAt = now;
+        });
+    });
     syncAfterWrite();
     return result;
 }
@@ -765,7 +977,7 @@ function bestNameMatch(rows, spoken) {
 
 export async function matchCustomerByName(spoken) {
     const bId = getBusinessId();
-    const all = await database.get('customers').query(Q.where('business_id', bId)).fetch();
+    const all = active(await database.get('customers').query(Q.where('business_id', bId)).fetch());
     return bestNameMatch(all, spoken);
 }
 

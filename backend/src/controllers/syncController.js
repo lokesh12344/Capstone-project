@@ -29,6 +29,9 @@ const pull = asyncHandler(async (req, res) => {
             `SELECT id, business_id, name, category, barcode, brand, unit,
           reorder_level, schedule_h,
           selling_price::FLOAT  AS selling_price,
+          archived_at::FLOAT    AS archived_at,
+          regular_price::FLOAT  AS regular_price,
+          sale_until::FLOAT     AS sale_until,
           sync_status,
           updated_at::FLOAT     AS updated_at
          FROM products
@@ -69,6 +72,7 @@ const pull = asyncHandler(async (req, res) => {
           total_amount::FLOAT  AS total_amount,
           payment_mode,
           sale_at::FLOAT       AS sale_at,
+          voided_at::FLOAT     AS voided_at,
           sync_status,
           updated_at::FLOAT    AS updated_at
          FROM sale_orders
@@ -90,6 +94,7 @@ const pull = asyncHandler(async (req, res) => {
         query(
             `SELECT id, business_id, name, phone, address, segment,
           last_purchase_at::FLOAT  AS last_purchase_at,
+          archived_at::FLOAT       AS archived_at,
           sync_status,
           updated_at::FLOAT        AS updated_at
          FROM customers
@@ -114,7 +119,8 @@ const pull = asyncHandler(async (req, res) => {
     if (clientSchema >= SCHEMA_SUPPLIERS) {
         const [suppliers, pos] = await Promise.all([
             query(
-                `SELECT id, business_id, name, phone, note, sync_status,
+                `SELECT id, business_id, name, phone, note,
+          archived_at::FLOAT AS archived_at, sync_status,
           updated_at::FLOAT AS updated_at
          FROM suppliers WHERE business_id = $1 AND server_ts > $2`,
                 [businessId, since]
@@ -182,8 +188,8 @@ const push = asyncHandler(async (req, res) => {
             await client.query(
                 `INSERT INTO products
            (id, business_id, name, category, barcode, brand, unit,
-            reorder_level, schedule_h, selling_price, sync_status, updated_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'synced',$11)
+            reorder_level, schedule_h, selling_price, archived_at, regular_price, sale_until, sync_status, updated_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$13,$15,$17,'synced',$11)
          ON CONFLICT (id) DO UPDATE SET
            name           = EXCLUDED.name,
            category       = EXCLUDED.category,
@@ -194,11 +200,19 @@ const push = asyncHandler(async (req, res) => {
            schedule_h     = EXCLUDED.schedule_h,
            -- staff may add products but not reprice existing ones
            selling_price  = CASE WHEN $12 THEN products.selling_price ELSE EXCLUDED.selling_price END,
+           -- archiving is owner-only; older apps don't send the field at all
+           archived_at    = CASE WHEN $14 AND NOT $12 THEN EXCLUDED.archived_at ELSE products.archived_at END,
+           -- starting/ending a discount is a price change, so owner-only too
+           regular_price  = CASE WHEN $16 AND NOT $12 THEN EXCLUDED.regular_price ELSE products.regular_price END,
+           sale_until     = CASE WHEN $18 AND NOT $12 THEN EXCLUDED.sale_until ELSE products.sale_until END,
            sync_status    = 'synced',
            updated_at     = EXCLUDED.updated_at`,
                 [p.id, businessId, p.name, p.category, p.barcode || null, p.brand || null,
                 p.unit, p.reorder_level ?? 5, p.schedule_h ?? false,
-                p.selling_price ?? 0, p.updated_at ?? now, isStaff]
+                p.selling_price ?? 0, p.updated_at ?? now, isStaff,
+                p.archived_at || null, 'archived_at' in p,
+                p.regular_price || null, 'regular_price' in p,
+                p.sale_until || null, 'sale_until' in p]
             );
         }
 
@@ -239,18 +253,20 @@ const push = asyncHandler(async (req, res) => {
         for (const c of upserts(changes.customers)) {
             await client.query(
                 `INSERT INTO customers
-           (id, business_id, name, phone, address, segment, last_purchase_at, sync_status, updated_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,'synced',$8)
+           (id, business_id, name, phone, address, segment, last_purchase_at, archived_at, sync_status, updated_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$9,'synced',$8)
          ON CONFLICT (id) DO UPDATE SET
            name             = EXCLUDED.name,
            phone            = EXCLUDED.phone,
            address          = EXCLUDED.address,
            segment          = EXCLUDED.segment,
            last_purchase_at = EXCLUDED.last_purchase_at,
+           archived_at      = CASE WHEN $10 THEN EXCLUDED.archived_at ELSE customers.archived_at END,
            sync_status      = 'synced',
            updated_at       = EXCLUDED.updated_at`,
                 [c.id, businessId, c.name, c.phone || null, c.address || null, c.segment || 'new',
-                c.last_purchase_at || null, c.updated_at ?? now]
+                c.last_purchase_at || null, c.updated_at ?? now,
+                c.archived_at || null, 'archived_at' in c]
             );
         }
 
@@ -258,11 +274,18 @@ const push = asyncHandler(async (req, res) => {
         for (const o of upserts(changes.sale_orders)) {
             await client.query(
                 `INSERT INTO sale_orders
-           (id, business_id, customer_id, total_amount, payment_mode, sale_at, sync_status, updated_at)
-         VALUES ($1,$2,$3,$4,$5,$6,'synced',$7)
-         ON CONFLICT (id) DO NOTHING`,  // orders are immutable once created
+           (id, business_id, customer_id, total_amount, payment_mode, sale_at, voided_at, sync_status, updated_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$8,'synced',$7)
+         -- orders are immutable once created; the one allowed change is the
+         -- owner voiding it (once — a void is never undone)
+         ON CONFLICT (id) DO UPDATE SET
+           voided_at  = EXCLUDED.voided_at,
+           updated_at = EXCLUDED.updated_at
+         WHERE sale_orders.business_id = $2 AND sale_orders.voided_at IS NULL
+           AND EXCLUDED.voided_at IS NOT NULL AND NOT $9`,
                 [o.id, businessId, o.customer_id || null,
-                o.total_amount, o.payment_mode || 'cash', o.sale_at, o.updated_at ?? now]
+                o.total_amount, o.payment_mode || 'cash', o.sale_at, o.updated_at ?? now,
+                o.voided_at || null, isStaff]
             );
         }
 
@@ -293,13 +316,15 @@ const push = asyncHandler(async (req, res) => {
         // ── Suppliers ─────────────────────────────────────────────────────────────
         for (const sp of upserts(changes.suppliers)) {
             await client.query(
-                `INSERT INTO suppliers (id, business_id, name, phone, note, sync_status, updated_at)
-         VALUES ($1,$2,$3,$4,$5,'synced',$6)
+                `INSERT INTO suppliers (id, business_id, name, phone, note, archived_at, sync_status, updated_at)
+         VALUES ($1,$2,$3,$4,$5,$7,'synced',$6)
          ON CONFLICT (id) DO UPDATE SET
            name = EXCLUDED.name, phone = EXCLUDED.phone, note = EXCLUDED.note,
+           archived_at = CASE WHEN $8 THEN EXCLUDED.archived_at ELSE suppliers.archived_at END,
            sync_status = 'synced', updated_at = EXCLUDED.updated_at
          WHERE suppliers.business_id = $2`,
-                [sp.id, businessId, sp.name, sp.phone || null, sp.note || null, sp.updated_at ?? now]
+                [sp.id, businessId, sp.name, sp.phone || null, sp.note || null, sp.updated_at ?? now,
+                sp.archived_at || null, 'archived_at' in sp]
             );
         }
 

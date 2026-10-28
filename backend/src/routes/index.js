@@ -42,11 +42,13 @@ router.get('/barcode/:code', barcode.lookup);
 router.get('/sync/pull', sync.pull);             // ?last_pulled_at=<unix_ms>
 router.post('/sync/push', sync.push);
 
-// ── Products (read-only — writes happen via sync) ─────────────────────────────
+// ── Products (writes happen via sync, except dashboard discounts) ─────────────
 router.get('/products', products.list);
 router.get('/products/low-stock', products.lowStock);
 router.get('/products/near-expiry', products.nearExpiry);   // ?days=30
 router.get('/products/:id', products.get);
+router.post('/products/:id/discount', requireOwner, products.applyDiscount);   // { sale_price, days? }
+router.delete('/products/:id/discount', requireOwner, products.endDiscount);
 
 // ── Analytics ─────────────────────────────────────────────────────────────────
 router.get('/analytics/dashboard', analytics.dashboard);

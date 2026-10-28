@@ -77,5 +77,31 @@ export default schemaMigrations({
                 }),
             ],
         },
+        {
+            // v5 -> v6: soft deletes. Archived products/customers/suppliers drop
+            // out of pickers and lists; a voided sale stays in Records, with its
+            // stock and khata reversed by compensating rows.
+            toVersion: 6,
+            steps: [
+                addColumns({ table: 'products', columns: [{ name: 'archived_at', type: 'number', isOptional: true }] }),
+                addColumns({ table: 'customers', columns: [{ name: 'archived_at', type: 'number', isOptional: true }] }),
+                addColumns({ table: 'suppliers', columns: [{ name: 'archived_at', type: 'number', isOptional: true }] }),
+                addColumns({ table: 'sale_orders', columns: [{ name: 'voided_at', type: 'number', isOptional: true }] }),
+            ],
+        },
+        {
+            // v6 -> v7: clearance discounts. regular_price holds the normal
+            // price while selling_price is the discounted one; null = no sale.
+            toVersion: 7,
+            steps: [
+                addColumns({
+                    table: 'products',
+                    columns: [
+                        { name: 'regular_price', type: 'number', isOptional: true },
+                        { name: 'sale_until', type: 'number', isOptional: true },
+                    ],
+                }),
+            ],
+        },
     ],
 });

@@ -1,0 +1,738 @@
+[
+  {
+    "barcode": "8901719100956",
+    "name": "Parle G",
+    "brand": "Parle-G",
+    "quantity": "80g",
+    "category": "Snack",
+    "query": "parle-g"
+  },
+  {
+    "barcode": "8901719255151",
+    "name": "Parle-G Original Gluco Biscuits",
+    "brand": "Parle-G",
+    "quantity": "150g",
+    "category": "Snack",
+    "query": "parle-g"
+  },
+  {
+    "barcode": "8901719123801",
+    "name": "Parle MONACO 400g",
+    "brand": "Parle",
+    "quantity": "400g",
+    "category": "Snack",
+    "query": "parle monaco"
+  },
+  {
+    "barcode": "8901719100826",
+    "name": "Hide & Seek",
+    "brand": "Parle",
+    "quantity": "120g",
+    "category": "Snack",
+    "query": "parle hide seek"
+  },
+  {
+    "barcode": "8901063004207",
+    "name": "Britannia Good Day Chocochip Cookies",
+    "brand": "Britannia",
+    "quantity": "111g",
+    "category": "Snack",
+    "query": "britannia good day"
+  },
+  {
+    "barcode": "8901063091023",
+    "name": "Good Day Harmony",
+    "brand": "Britannia",
+    "quantity": "120 g",
+    "category": "Snack",
+    "query": "britannia good day"
+  },
+  {
+    "barcode": "8901063162242",
+    "name": "Britannia Marie Gold",
+    "brand": "Britannia",
+    "quantity": "1 kg",
+    "category": "Snack",
+    "query": "britannia marie gold"
+  },
+  {
+    "barcode": "8901063342033",
+    "name": "britannia bread",
+    "brand": "Britannia",
+    "quantity": "250g",
+    "category": "Bakery",
+    "query": "britannia bread"
+  },
+  {
+    "barcode": "8901725133979",
+    "name": "Sunfeast Dark Fantasy Bourbon, Classic Biscuit",
+    "brand": "Sunfeast",
+    "quantity": "50g",
+    "category": "Snack",
+    "query": "sunfeast"
+  },
+  {
+    "barcode": "8901725181673",
+    "name": "Sunfeast yippee 280g",
+    "brand": "Sunfeast",
+    "quantity": "5",
+    "category": "Snack",
+    "query": "sunfeast"
+  },
+  {
+    "barcode": "8904063204325",
+    "name": "Haldiram's Bhujia",
+    "brand": "Haldiram",
+    "quantity": "460 g",
+    "category": "Snack",
+    "query": "haldiram"
+  },
+  {
+    "barcode": "8904004400588",
+    "name": "Haldiram's Lite Chiwda",
+    "brand": "Haldiram",
+    "quantity": "57 g",
+    "category": "Snack",
+    "query": "haldiram"
+  },
+  {
+    "barcode": "8904004403732",
+    "name": "Haldiram moong dal",
+    "brand": "Haldiram",
+    "quantity": "200 g",
+    "category": "Snack",
+    "query": "haldiram"
+  },
+  {
+    "barcode": "8904063259356",
+    "name": "Haldiram Amritsari  kulcha",
+    "brand": "Haldiram",
+    "quantity": "100 gm",
+    "category": "Snack",
+    "query": "haldiram"
+  },
+  {
+    "barcode": "8906005508867",
+    "name": "Bikaji Kaju Katli",
+    "brand": "Bikaji",
+    "quantity": "12 oz, 340g",
+    "category": "Snack",
+    "query": "bikaji"
+  },
+  {
+    "barcode": "8906005508904",
+    "name": "Bikaji mobile bhel chowpati bhelpuri",
+    "brand": "Bikaji",
+    "quantity": "110g",
+    "category": "Snack",
+    "query": "bikaji"
+  },
+  {
+    "barcode": "8901491101813",
+    "name": "Lays 20rs",
+    "brand": "PepsiCo",
+    "quantity": "55 g",
+    "category": "Snack",
+    "query": "lays"
+  },
+  {
+    "barcode": "8901491001038",
+    "name": "Lays Spanish 50",
+    "brand": "Lays",
+    "quantity": "90g",
+    "category": "Snack",
+    "query": "lays"
+  },
+  {
+    "barcode": "8901491982351",
+    "name": "Lays ONION 20rs",
+    "brand": "Lays",
+    "quantity": "50gm",
+    "category": "Snack",
+    "query": "lays"
+  },
+  {
+    "barcode": "8901491367219",
+    "name": "kurkure",
+    "brand": "kurkure",
+    "quantity": "25g",
+    "category": "Snack",
+    "query": "kurkure"
+  },
+  {
+    "barcode": "8901491103084",
+    "name": "Kurkure",
+    "brand": "PepsiCo",
+    "quantity": "75g",
+    "category": "Snack",
+    "query": "kurkure"
+  },
+  {
+    "barcode": "8901725193119",
+    "name": "bingo",
+    "brand": "bingo",
+    "quantity": "1",
+    "category": "Snack",
+    "query": "bingo"
+  },
+  {
+    "barcode": "8901491400008",
+    "name": "Uncle Chips",
+    "brand": "Uncle Chips",
+    "quantity": "11g(8.8g+2.2g Extra)",
+    "category": "Snack",
+    "query": "uncle chips"
+  },
+  {
+    "barcode": "8901058005608",
+    "name": "Maggi",
+    "brand": "Maggi",
+    "quantity": "may/24/jan/25-D",
+    "category": "Instant Food",
+    "query": "maggi"
+  },
+  {
+    "barcode": "8901058000269",
+    "name": "Maggi",
+    "brand": "Maggi",
+    "quantity": "280g",
+    "category": "Instant Food",
+    "query": "maggi"
+  },
+  {
+    "barcode": "8901058901542",
+    "name": "Maggie",
+    "brand": "Maggi",
+    "quantity": "140g",
+    "category": "Instant Food",
+    "query": "maggi"
+  },
+  {
+    "barcode": "8901725181420",
+    "name": "Sunfeast Yippee Noodles",
+    "brand": "ITC Sunfeast",
+    "quantity": "70 g",
+    "category": "Instant Food",
+    "query": "yippee"
+  },
+  {
+    "barcode": "8901014003181",
+    "name": "Top Ramen Curry",
+    "brand": "Nissin",
+    "quantity": "280 g",
+    "category": "Instant Food",
+    "query": "top ramen"
+  },
+  {
+    "barcode": "8901262010153",
+    "name": "amul butter",
+    "brand": null,
+    "quantity": "100 g",
+    "category": "Dairy",
+    "query": "amul butter"
+  },
+  {
+    "barcode": "8901262020244",
+    "name": "Amul Cheese",
+    "brand": "Amul",
+    "quantity": "200g",
+    "category": "Dairy",
+    "query": "amul cheese"
+  },
+  {
+    "barcode": "8901262150088",
+    "name": "Amul Taaza",
+    "brand": "Amul",
+    "quantity": "200 ml",
+    "category": "Dairy",
+    "query": "amul taaza"
+  },
+  {
+    "barcode": "8901262150989",
+    "name": "Amul Gold",
+    "brand": "Amul",
+    "quantity": "1 litre",
+    "category": "Dairy",
+    "query": "amul gold"
+  },
+  {
+    "barcode": "8901262031059",
+    "name": "Amul ghee",
+    "brand": "Amul ghee",
+    "quantity": "500 gm",
+    "category": "Dairy",
+    "query": "amul ghee"
+  },
+  {
+    "barcode": "8901262151696",
+    "name": "Amul Lassi 180ml tpk",
+    "brand": "Amul",
+    "quantity": "250 ml",
+    "category": "Dairy",
+    "query": "amul lassi"
+  },
+  {
+    "barcode": "8901262201995",
+    "name": "Amul Buttermilk",
+    "brand": "Amul",
+    "quantity": "310ml",
+    "category": "Dairy",
+    "query": "amul buttermilk"
+  },
+  {
+    "barcode": "8901648019718",
+    "name": "Mother Dairy Ghi",
+    "brand": "Mother Dairy",
+    "quantity": "1ltr",
+    "category": "Dairy",
+    "query": "mother dairy"
+  },
+  {
+    "barcode": "8904043926612",
+    "name": "Himalayan Rock Salt",
+    "brand": "TATA Salt",
+    "quantity": "1 kg",
+    "category": "Grocery",
+    "query": "tata salt"
+  },
+  {
+    "barcode": "8901052003839",
+    "name": "Tata Tea Agni",
+    "brand": "Tata Tea",
+    "quantity": "40g",
+    "category": "Beverage",
+    "query": "tata tea"
+  },
+  {
+    "barcode": "8901052005161",
+    "name": "Tata Tea Gold Care",
+    "brand": "Tata Tea",
+    "quantity": "500g",
+    "category": "Beverage",
+    "query": "tata tea"
+  },
+  {
+    "barcode": "8901030876981",
+    "name": "Red Label",
+    "brand": null,
+    "quantity": "500g",
+    "category": "Beverage",
+    "query": "red label"
+  },
+  {
+    "barcode": "8901030658761",
+    "name": "Taj Mahal tea leaves 500 g",
+    "brand": "Brooke Bond",
+    "quantity": "500 g",
+    "category": "Beverage",
+    "query": "taj mahal tea"
+  },
+  {
+    "barcode": "8901030625381",
+    "name": "bru coffee",
+    "brand": "BRU",
+    "quantity": "100",
+    "category": "Beverage",
+    "query": "bru coffee"
+  },
+  {
+    "barcode": "8901058895322",
+    "name": "Nescafe Sunrise",
+    "brand": "Nescafe",
+    "quantity": "5.5g",
+    "category": "Beverage",
+    "query": "nescafe"
+  },
+  {
+    "barcode": "8901233020341",
+    "name": "BournVita",
+    "brand": "Cadbury",
+    "quantity": "500g",
+    "category": "Beverage",
+    "query": "bournvita"
+  },
+  {
+    "barcode": "8901571001354",
+    "name": "horlicks",
+    "brand": "horlicks",
+    "quantity": "150",
+    "category": "Beverage",
+    "query": "horlicks"
+  },
+  {
+    "barcode": "8901725118846",
+    "name": "Aashirvaad Vermicilli",
+    "brand": "Aashirvaad",
+    "quantity": "850 g",
+    "category": "Grocery",
+    "query": "aashirvaad"
+  },
+  {
+    "barcode": "8901725121112",
+    "name": "Aashirvaad Atta",
+    "brand": "Aashirvaad",
+    "quantity": "10kg",
+    "category": "Grocery",
+    "query": "aashirvaad"
+  },
+  {
+    "barcode": "8906007280020",
+    "name": "Fortune oil",
+    "brand": null,
+    "quantity": "500 ml",
+    "category": "Grocery",
+    "query": "fortune oil"
+  },
+  {
+    "barcode": "8901088050562",
+    "name": "Saffola Oats",
+    "brand": "Saffola",
+    "quantity": "400g",
+    "category": "Grocery",
+    "query": "saffola"
+  },
+  {
+    "barcode": "8906007289139",
+    "name": "Fortune Atta",
+    "brand": "Fortune",
+    "quantity": "1kg",
+    "category": "Grocery",
+    "query": "fortune"
+  },
+  {
+    "barcode": "8901786130504",
+    "name": "EVEREST Sabji Masala",
+    "brand": "Everest",
+    "quantity": "10gm",
+    "category": "Spices",
+    "query": "everest masala"
+  },
+  {
+    "barcode": "8901786100507",
+    "name": "EVEREST Garam Masala",
+    "brand": "Everest",
+    "quantity": "50gm",
+    "category": "Spices",
+    "query": "everest masala"
+  },
+  {
+    "barcode": "8901786081004",
+    "name": "Everest Sambhar masala",
+    "brand": null,
+    "quantity": "100gm",
+    "category": "Spices",
+    "query": "everest masala"
+  },
+  {
+    "barcode": "8902167000836",
+    "name": "CHICKEN MASALA mdh",
+    "brand": "MDH",
+    "quantity": "100gm",
+    "category": "Spices",
+    "query": "mdh"
+  },
+  {
+    "barcode": "8902167001314",
+    "name": "DEGGI POWDER mdh",
+    "brand": "MDH",
+    "quantity": "50gm",
+    "category": "Spices",
+    "query": "mdh"
+  },
+  {
+    "barcode": "8901192213112",
+    "name": "MEAT MASALA Catch",
+    "brand": "Catch",
+    "quantity": "100gm",
+    "category": "Spices",
+    "query": "catch"
+  },
+  {
+    "barcode": "8904043926728",
+    "name": "Tata Sampann Besan",
+    "brand": "Tata Sampann",
+    "quantity": "500g",
+    "category": "Grocery",
+    "query": "tata sampann"
+  },
+  {
+    "barcode": "8904043926223",
+    "name": "Tata sampann toor daal",
+    "brand": "Tata sampann",
+    "quantity": "500g",
+    "category": "Grocery",
+    "query": "tata sampann"
+  },
+  {
+    "barcode": "8906002348169",
+    "name": "Poha Mota",
+    "brand": "Rajdhani",
+    "quantity": "500g",
+    "category": "Grocery",
+    "query": "rajdhani"
+  },
+  {
+    "barcode": "8901030857973",
+    "name": "Kissan peanut butter",
+    "brand": "Kissan",
+    "quantity": "350g",
+    "category": "Grocery",
+    "query": "kissan"
+  },
+  {
+    "barcode": "8901030959776",
+    "name": "Kissan Peanut Butter Crunchy",
+    "brand": "Kissan",
+    "quantity": "350g",
+    "category": "Grocery",
+    "query": "kissan"
+  },
+  {
+    "barcode": "8901058895766",
+    "name": "maggi Pichkoo tomato ketchup",
+    "brand": "Nestle",
+    "quantity": "90g",
+    "category": "Grocery",
+    "query": "maggi ketchup"
+  },
+  {
+    "barcode": "8901042957968",
+    "name": "MTR DOSA",
+    "brand": "MTR",
+    "quantity": "500g",
+    "category": "Instant Food",
+    "query": "mtr"
+  },
+  {
+    "barcode": "8901042967325",
+    "name": "MTR POHA",
+    "brand": "MTR",
+    "quantity": "60g",
+    "category": "Instant Food",
+    "query": "mtr"
+  },
+  {
+    "barcode": "8902579103170",
+    "name": "FROOTI Mango Drink",
+    "brand": "Parle Agro",
+    "quantity": "600 ml",
+    "category": "Beverage",
+    "query": "frooti"
+  },
+  {
+    "barcode": "8901764092206",
+    "name": "Maaza Original 600ml",
+    "brand": "Maaza",
+    "quantity": "24",
+    "category": "Beverage",
+    "query": "maaza"
+  },
+  {
+    "barcode": "8901764042911",
+    "name": "Thums up",
+    "brand": "Thums up",
+    "quantity": "250 ml",
+    "category": "Beverage",
+    "query": "thums up"
+  },
+  {
+    "barcode": "8901764032905",
+    "name": "Sprite",
+    "brand": "Sprite",
+    "quantity": "2.25l",
+    "category": "Beverage",
+    "query": "sprite"
+  },
+  {
+    "barcode": "8902080104048",
+    "name": "Pepsi",
+    "brand": "Pepsi",
+    "quantity": "500ml",
+    "category": "Beverage",
+    "query": "pepsi"
+  },
+  {
+    "barcode": "8908001705127",
+    "name": "Paper boat jamun",
+    "brand": "Paper boat",
+    "quantity": "200ml",
+    "category": "Beverage",
+    "query": "paper boat"
+  },
+  {
+    "barcode": "8906017290033",
+    "name": "Bisleri",
+    "brand": "BISLERI",
+    "quantity": "500ml",
+    "category": "Beverage",
+    "query": "bisleri"
+  },
+  {
+    "barcode": "8901233030548",
+    "name": "Cadbury Dairy Milk",
+    "brand": "Mondelez",
+    "quantity": "13.2 g",
+    "category": "Confectionery",
+    "query": "cadbury dairy milk"
+  },
+  {
+    "barcode": "8901233025636",
+    "name": "Cadbury Dairy milk",
+    "brand": "catbary",
+    "quantity": "52g",
+    "category": "Confectionery",
+    "query": "cadbury dairy milk"
+  },
+  {
+    "barcode": "8901233028958",
+    "name": "5 star",
+    "brand": "Cadbury",
+    "quantity": "5rs",
+    "category": "Confectionery",
+    "query": "5 star"
+  },
+  {
+    "barcode": "8901058868036",
+    "name": "KitKat",
+    "brand": "Nestle",
+    "quantity": "55g",
+    "category": "Confectionery",
+    "query": "kitkat"
+  },
+  {
+    "barcode": "8901233024042",
+    "name": "perk",
+    "brand": "cadbury",
+    "quantity": "13 g",
+    "category": "Confectionery",
+    "query": "perk"
+  },
+  {
+    "barcode": "8901058869002",
+    "name": "Munch",
+    "brand": "Nestle",
+    "quantity": "12.5 g",
+    "category": "Confectionery",
+    "query": "munch"
+  },
+  {
+    "barcode": "8901088213608",
+    "name": "Saffola Oats",
+    "brand": "Saffola",
+    "quantity": "1kg",
+    "category": "Breakfast",
+    "query": "saffola oats"
+  },
+  {
+    "barcode": "8901491103794",
+    "name": "Quaker oats",
+    "brand": "Quaker",
+    "quantity": "400g",
+    "category": "Breakfast",
+    "query": "quaker oats"
+  },
+  {
+    "barcode": "8901207872624",
+    "name": "Dabur Honey",
+    "brand": "Dabur",
+    "quantity": "650 g",
+    "category": "Grocery",
+    "query": "dabur honey"
+  },
+  {
+    "barcode": "8904422701151",
+    "name": "Patanjali Rock Salt",
+    "brand": "Patanjali",
+    "quantity": "1kg",
+    "category": "Grocery",
+    "query": "patanjali"
+  },
+  {
+    "barcode": "8904109470264",
+    "name": "Patanjali Mango Drink",
+    "brand": "Patanjali",
+    "quantity": "500ml",
+    "category": "Grocery",
+    "query": "patanjali"
+  },
+  {
+    "barcode": "8901314765314",
+    "name": "Colgate",
+    "brand": "Colgate",
+    "quantity": "200g",
+    "category": "Personal Care",
+    "query": "colgate"
+  },
+  {
+    "barcode": "8901314553065",
+    "name": "Colgate",
+    "brand": "Colgate",
+    "quantity": "46",
+    "category": "Personal Care",
+    "query": "colgate"
+  },
+  {
+    "barcode": "8901030824968",
+    "name": "Dove soap",
+    "brand": "Dove",
+    "quantity": "125g",
+    "category": "Personal Care",
+    "query": "dove"
+  },
+  {
+    "barcode": "8901030886126",
+    "name": "Lux",
+    "brand": "International",
+    "quantity": "4×125 g each",
+    "category": "Personal Care",
+    "query": "lux"
+  },
+  {
+    "barcode": "8901396387701",
+    "name": "Dettol Hand Wash",
+    "brand": "Dettol",
+    "quantity": "1000Kg",
+    "category": "Personal Care",
+    "query": "dettol"
+  },
+  {
+    "barcode": "8901088047142",
+    "name": "parachute oil",
+    "brand": "parachute",
+    "quantity": "2280 mg",
+    "category": "Personal Care",
+    "query": "parachute"
+  },
+  {
+    "barcode": "8901030984709",
+    "name": "Clinic Plus+ Shampoo",
+    "brand": "Clinic Plus",
+    "quantity": "50ml",
+    "category": "Personal Care",
+    "query": "clinic plus"
+  },
+  {
+    "barcode": "8901030898440",
+    "name": "Surf Excel",
+    "brand": "Surf",
+    "quantity": "75 g",
+    "category": "Household",
+    "query": "surf excel"
+  },
+  {
+    "barcode": "8901030889875",
+    "name": "Vim liquid gel",
+    "brand": null,
+    "quantity": "140 ml",
+    "category": "Household",
+    "query": "vim"
+  },
+  {
+    "barcode": "8901396173595",
+    "name": "Harpic",
+    "brand": "Harpic",
+    "quantity": "1L",
+    "category": "Household",
+    "query": "harpic"
+  }
+]

@@ -6,6 +6,7 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import {
     getSuppliers, saveSupplier, getSupplierPurchases, getPurchaseOrders, setPurchaseOrderStatus,
+    setSupplierArchived,
 } from '../database/actions';
 import { openWhatsApp } from '../services/share';
 import { PrimaryButton, GhostButton, Card, Badge, EmptyState } from '../../components/UI';
@@ -24,7 +25,8 @@ export default function SuppliersScreen({ navigation, route }) {
     const [purchases, setPurchases] = useState([]);
 
     const load = useCallback(async () => {
-        const [sp, po] = await Promise.all([getSuppliers(), getPurchaseOrders()]);
+        // Archived suppliers are kept so old purchase orders still show their name.
+        const [sp, po] = await Promise.all([getSuppliers({ includeArchived: true }), getPurchaseOrders()]);
         setSuppliers(sp);
         setOrders(po);
     }, []);
@@ -55,6 +57,25 @@ export default function SuppliersScreen({ navigation, route }) {
     }
 
     const supplierName = id => suppliers.find(s => s.id === id)?.name || 'No supplier';
+    const activeSuppliers = suppliers.filter(sp => !sp.archivedAt);
+
+    function removeSupplier() {
+        const sp = viewing;
+        Alert.alert(
+            'Remove supplier',
+            `${sp.name} will be hidden from supplier lists. Past purchase orders and stock records keep their name.`,
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Remove', style: 'destructive', onPress: async () => {
+                        await setSupplierArchived(sp.id, true);
+                        setViewing(null);
+                        load();
+                    },
+                },
+            ]
+        );
+    }
 
     return (
         <View style={s.root}>
@@ -69,10 +90,10 @@ export default function SuppliersScreen({ navigation, route }) {
                     </TouchableOpacity>
                 </View>
 
-                {suppliers.length === 0 ? (
+                {activeSuppliers.length === 0 ? (
                     <EmptyState icon={<AppIcon name="suppliers" size={40} />} title="No suppliers yet"
                         subtitle="Add the distributors you buy from to send them orders on WhatsApp." />
-                ) : suppliers.map(sp => (
+                ) : activeSuppliers.map(sp => (
                     <TouchableOpacity key={sp.id} activeOpacity={0.8} onPress={() => openSupplier(sp)}>
                         <Card style={s.row}>
                             <AppIcon name="suppliers" size="chip" color={colors.blue} />
@@ -157,6 +178,9 @@ export default function SuppliersScreen({ navigation, route }) {
                             </TouchableOpacity>
                             <TouchableOpacity onPress={() => { const id = viewing.id; setViewing(null); navigation.navigate('PurchaseOrder', { supplierId: id }); }}>
                                 <Text style={s.link}>New order</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={removeSupplier}>
+                                <Text style={[s.link, { color: colors.red }]}>Remove</Text>
                             </TouchableOpacity>
                         </View>
                         <Text style={s.section}>RECENT STOCK FROM THIS SUPPLIER</Text>

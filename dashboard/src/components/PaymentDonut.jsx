@@ -1,90 +1,59 @@
 import React from 'react';
 import { formatCurrency } from '../lib/format';
 
-const PAYMENT_COLORS = {
-    cash: '#1db97a',
-    upi: '#4a90e2',
-    credit: '#f0a500',
-};
+const ITEMS = [
+    { key: 'cash', label: 'Cash', color: 'var(--pay-cash)' },
+    { key: 'upi', label: 'UPI', color: 'var(--pay-upi)' },
+    { key: 'credit', label: 'Credit', color: 'var(--pay-credit)' },
+];
 
 export default function PaymentDonut({ totals }) {
-    const items = [
-        { key: 'cash', label: 'Cash', value: totals.cash },
-        { key: 'upi', label: 'UPI', value: totals.upi },
-        { key: 'credit', label: 'Credit', value: totals.credit },
-    ];
-
-    const total = items.reduce((sum, item) => sum + item.value, 0);
-
+    const total = ITEMS.reduce((sum, item) => sum + totals[item.key], 0);
     if (total <= 0) return null;
 
-    let cumulative = 0;
-    const segments = items.map(item => {
-        const fraction = item.value / total;
-        const start = cumulative;
-        cumulative += fraction;
-        return {
-            ...item,
-            startAngle: start * Math.PI * 2 - Math.PI / 2,
-            endAngle: cumulative * Math.PI * 2 - Math.PI / 2,
-        };
-    });
+    // Stroke-dasharray donut: each segment is an arc of one circle, with a
+    // small gap so adjacent segments read as separate.
+    const r = 70;
+    const circumference = 2 * Math.PI * r;
+    const gap = 3;
+    let offset = 0;
 
     return (
         <div className="donut-layout">
-            <svg viewBox="0 0 220 220" className="donut-chart" role="img" aria-label="Payment mode distribution">
-                {segments.map(segment => (
-                    <path
-                        key={segment.key}
-                        d={describeArc(110, 110, 72, segment.startAngle, segment.endAngle)}
-                        stroke={PAYMENT_COLORS[segment.key]}
-                        strokeWidth="26"
-                        fill="none"
-                        strokeLinecap="round"
-                    >
-                        <title>{`${segment.label}: ${formatCurrency(segment.value)}`}</title>
-                    </path>
-                ))}
-                <circle cx="110" cy="110" r="46" fill="var(--bg-card)" />
-                <text x="110" y="104" textAnchor="middle" className="donut-center-label">Total</text>
-                <text x="110" y="126" textAnchor="middle" className="donut-center-value">{formatCurrency(total)}</text>
+            <svg viewBox="0 0 200 200" className="donut-chart" role="img" aria-label="Payment mode split">
+                <g transform="rotate(-90 100 100)">
+                    {ITEMS.map(item => {
+                        const len = (totals[item.key] / total) * circumference;
+                        const seg = (
+                            <circle
+                                key={item.key}
+                                cx="100" cy="100" r={r}
+                                fill="none"
+                                stroke={item.color}
+                                strokeWidth="26"
+                                strokeDasharray={`${Math.max(len - gap, 0)} ${circumference}`}
+                                strokeDashoffset={-offset}
+                            >
+                                <title>{`${item.label}: ${formatCurrency(totals[item.key])}`}</title>
+                            </circle>
+                        );
+                        offset += len;
+                        return seg;
+                    })}
+                </g>
+                <text x="100" y="98" textAnchor="middle" className="donut-center-value">{formatCurrency(total)}</text>
+                <text x="100" y="120" textAnchor="middle" className="donut-center-label">Total sales</text>
             </svg>
 
             <div className="legend">
-                {items.map(item => {
-                    const share = total > 0 ? (item.value / total) * 100 : 0;
-                    return (
-                        <div key={item.key} className="legend__row">
-                            <div className="legend__label">
-                                <span className="legend__dot" style={{ backgroundColor: PAYMENT_COLORS[item.key] }} />
-                                {item.label}
-                            </div>
-                            <div className="legend__values">
-                                <strong>{formatCurrency(item.value)}</strong>
-                                <span>{share.toFixed(1)}%</span>
-                            </div>
-                        </div>
-                    );
-                })}
+                {ITEMS.map(item => (
+                    <div key={item.key} className="legend__row">
+                        <span className="legend__label"><span className="legend__dot" style={{ background: item.color }} />{item.label}</span>
+                        <strong>{formatCurrency(totals[item.key])}</strong>
+                        <span className="legend__share">{((totals[item.key] / total) * 100).toFixed(1)}%</span>
+                    </div>
+                ))}
             </div>
         </div>
     );
-}
-
-function polarToCartesian(cx, cy, radius, angleInRadians) {
-    return {
-        x: cx + radius * Math.cos(angleInRadians),
-        y: cy + radius * Math.sin(angleInRadians),
-    };
-}
-
-function describeArc(cx, cy, radius, startAngle, endAngle) {
-    const start = polarToCartesian(cx, cy, radius, endAngle);
-    const end = polarToCartesian(cx, cy, radius, startAngle);
-    const largeArcFlag = endAngle - startAngle <= Math.PI ? '0' : '1';
-
-    return [
-        'M', start.x, start.y,
-        'A', radius, radius, 0, largeArcFlag, 0, end.x, end.y,
-    ].join(' ');
 }

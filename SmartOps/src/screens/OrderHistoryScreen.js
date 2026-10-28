@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import {
     View, Text, SectionList, TouchableOpacity,
-    StyleSheet, RefreshControl, Modal, ScrollView, ActivityIndicator,
+    StyleSheet, RefreshControl, Modal, ScrollView, ActivityIndicator, Alert,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Q } from '@nozbe/watermelondb';
@@ -11,6 +11,9 @@ import { Badge, EmptyState } from '../../components/UI';
 import { AppIcon } from '../theme/icons';
 import { colors, spacing, radius, font } from '../theme';
 import { shareBillPdf, sendBillOnWhatsApp } from '../services/share';
+import { voidSale } from '../database/actions';
+import { useAppBadges } from '../hooks/useAppBadges';
+import { useSession } from '../services/session';
 
 const DATE_FILTERS = ['today', 'week', 'month', 'all'];
 const PAYMENT_FILTERS = ['all', 'cash', 'upi', 'credit'];
@@ -25,6 +28,9 @@ export default function OrderHistoryScreen({ navigation }) {
     const [loadingItems, setLoadingItems] = useState(false);
     const [paymentFilter, setPaymentFilter] = useState('all');
     const [dateFilter, setDateFilter] = useState('week');
+    const [voiding, setVoiding] = useState(false);
+    const { role } = useSession();
+    const { refresh: refreshBadges } = useAppBadges();
 
     const load = useCallback(async (range) => {
         const bId = getBusinessId();
@@ -139,6 +145,38 @@ export default function OrderHistoryScreen({ navigation }) {
         return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
     }
 
+    // Owner-only (the server ignores a staff void too). The order stays listed,
+    // marked VOID, and stops counting toward any total.
+    function confirmVoid() {
+        const order = selected;
+        const credit = order.paymentMode === 'credit';
+        Alert.alert(
+            'Void this bill?',
+            `₹${order.totalAmount.toFixed(2)} will be taken out of your sales and the items put back in stock.` +
+                (credit ? ' The amount will also be removed from the customer\'s khata.' : '') +
+                ' This cannot be undone.',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Void bill', style: 'destructive', onPress: async () => {
+                        setVoiding(true);
+                        try {
+                            await voidSale(order.id);
+                            setSelected(null);
+                            await load(dateFilter);
+                            refreshBadges();
+                        } catch (e) {
+                            Alert.alert('Error', 'Could not void this bill. Please try again.');
+                            console.error(e);
+                        } finally {
+                            setVoiding(false);
+                        }
+                    },
+                },
+            ]
+        );
+    }
+
     function paymentColor(mode) {
         if (mode === 'upi') return colors.blue;
         if (mode === 'credit') return colors.amber;
@@ -159,11 +197,12 @@ export default function OrderHistoryScreen({ navigation }) {
     const sections = Object.entries(grouped).map(([title, data]) => ({
         title,
         data,
-        total: data.reduce((sum, order) => sum + order.totalAmount, 0),
+        total: data.reduce((sum, order) => sum + (order.voidedAt ? 0 : order.totalAmount), 0),
     }));
 
-    const visibleRevenue = filteredOrders.reduce((sum, order) => sum + order.totalAmount, 0);
-    const visibleCount = filteredOrders.length;
+    const countedOrders = filteredOrders.filter(order => !order.voidedAt);
+    const visibleRevenue = countedOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+    const visibleCount = countedOrders.length;
 
     return (
         <View style={s.root}>
@@ -256,14 +295,18 @@ export default function OrderHistoryScreen({ navigation }) {
                                     <Text style={s.orderPrimary} numberOfLines={1}>
                                         {isCredit ? (customerName || 'Khata sale') : `${itemCount} item${itemCount === 1 ? '' : 's'}`}
                                     </Text>
-                                    <Text style={s.orderAmount}>₹{order.totalAmount.toFixed(2)}</Text>
+                                    <Text style={[s.orderAmount, order.voidedAt && s.voidedAmount]}>₹{order.totalAmount.toFixed(2)}</Text>
                                 </View>
                                 <View style={s.orderBottom}>
                                     <Text style={s.orderTime}>{formatTime(order.saleAt)}</Text>
-                                    <Badge
-                                        label={order.paymentMode.toUpperCase()}
-                                        color={paymentColor(order.paymentMode)}
-                                    />
+                                    {order.voidedAt ? (
+                                        <Badge label="VOID" color={colors.red} />
+                                    ) : (
+                                        <Badge
+                                            label={order.paymentMode.toUpperCase()}
+                                            color={paymentColor(order.paymentMode)}
+                                        />
+                                    )}
                                 </View>
                             </View>
                             <AppIcon name="chevron" size="inline" />
@@ -320,6 +363,11 @@ export default function OrderHistoryScreen({ navigation }) {
                             <Text style={s.modalTotalValue}>₹{selected?.totalAmount.toFixed(2)}</Text>
                         </View>
 
+                        {selected?.voidedAt ? (
+                            <Text style={s.voidedNote}>
+                                Voided on {new Date(selected.voidedAt).toLocaleString('en-IN')}. Items were put back in stock.
+                            </Text>
+                        ) : (<>
                         <View style={s.billRow}>
                             <TouchableOpacity style={s.billBtn} onPress={() => selected && shareBillPdf(selected.id)}>
                                 <AppIcon name="share" size="chip" color={colors.teal} />
@@ -330,6 +378,15 @@ export default function OrderHistoryScreen({ navigation }) {
                                 <Text style={s.billBtnText}>WhatsApp</Text>
                             </TouchableOpacity>
                         </View>
+                        {role !== 'staff' && (
+                            <TouchableOpacity style={s.voidBtn} onPress={confirmVoid} disabled={voiding}>
+                                {voiding
+                                    ? <ActivityIndicator color={colors.red} size="small" />
+                                    : <AppIcon name="void" size="inline" color={colors.red} />}
+                                <Text style={s.voidBtnText}>Void bill (wrong entry)</Text>
+                            </TouchableOpacity>
+                        )}
+                        </>)}
                     </TouchableOpacity>
                 </TouchableOpacity>
             </Modal>
@@ -465,6 +522,13 @@ const s = StyleSheet.create({
     itemTotal: { color: colors.teal, fontSize: font.md, fontWeight: '700' },
 
     billRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
+    voidBtn: {
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+        marginTop: spacing.md, paddingVertical: spacing.sm,
+    },
+    voidBtnText: { color: colors.red, fontSize: font.sm, fontWeight: '600' },
+    voidedNote: { color: colors.red, fontSize: font.sm, marginTop: spacing.md, textAlign: 'center' },
+    voidedAmount: { color: colors.textMuted, textDecorationLine: 'line-through' },
     billBtn: {
         flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
         borderWidth: 1, borderColor: colors.teal + '55', borderRadius: radius.md, paddingVertical: 12,

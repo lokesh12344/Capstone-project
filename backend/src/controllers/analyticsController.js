@@ -2,6 +2,13 @@ const { query } = require('../db/pool');
 const { asyncHandler } = require('../middleware/errors');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+
+// Midnight in India, as a UTC timestamp. The server runs on UTC, so a plain
+// setHours(0) would start "today" at 5:30 am IST.
+function istDayStart(ms = Date.now()) {
+    return Math.floor((ms + IST_OFFSET_MS) / DAY_MS) * DAY_MS - IST_OFFSET_MS;
+}
 
 // GET /api/analytics/sales?period=daily|weekly|monthly
 const sales = asyncHandler(async (req, res) => {
@@ -12,14 +19,15 @@ const sales = asyncHandler(async (req, res) => {
 
     const { rows } = await query(
         `SELECT
-       DATE_TRUNC($1, TO_TIMESTAMP(sale_at / 1000)) AS period,
+       -- bucket by the shop's calendar day (IST), not the server's UTC day
+       DATE_TRUNC($1, TO_TIMESTAMP(sale_at / 1000) AT TIME ZONE 'Asia/Kolkata') AS period,
        COUNT(*)                                      AS order_count,
        SUM(total_amount)                             AS revenue,
        SUM(CASE WHEN payment_mode='cash'   THEN total_amount ELSE 0 END) AS cash,
        SUM(CASE WHEN payment_mode='upi'    THEN total_amount ELSE 0 END) AS upi,
        SUM(CASE WHEN payment_mode='credit' THEN total_amount ELSE 0 END) AS credit
      FROM sale_orders
-     WHERE business_id = $2
+     WHERE business_id = $2 AND voided_at IS NULL
        AND TO_TIMESTAMP(sale_at / 1000) >= NOW() - INTERVAL '90 days'
      GROUP BY 1
      ORDER BY 1 DESC`,
@@ -40,7 +48,7 @@ const topProducts = asyncHandler(async (req, res) => {
      FROM sale_items si
      JOIN products p ON p.id = si.product_id
      JOIN sale_orders so ON so.id = si.order_id
-     WHERE so.business_id = $1
+     WHERE so.business_id = $1 AND so.voided_at IS NULL
        AND TO_TIMESTAMP(so.sale_at / 1000) >= NOW() - INTERVAL '30 days'
      GROUP BY p.id
      ORDER BY units_sold DESC
@@ -65,7 +73,8 @@ const customerStats = asyncHandler(async (req, res) => {
        LEFT JOIN sale_orders so
          ON so.customer_id = c.id
          AND TO_TIMESTAMP(so.sale_at / 1000) >= NOW() - INTERVAL '30 days'
-       WHERE c.business_id = $1
+         AND so.voided_at IS NULL
+       WHERE c.business_id = $1 AND c.archived_at IS NULL
        GROUP BY c.id
      )
      SELECT *,
@@ -94,29 +103,44 @@ const customerStats = asyncHandler(async (req, res) => {
 // GET /api/analytics/dashboard
 const dashboard = asyncHandler(async (req, res) => {
     const businessId = req.business.id;
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
+    const todayStart = istDayStart();
+    const yesterdayStart = todayStart - DAY_MS;
+    // Same time of day yesterday, so "vs yesterday" compares like with like.
+    const yesterdaySoFar = Date.now() - DAY_MS;
 
-    const [todaySales, lowStock, nearExpiry, topProds] = await Promise.all([
+    const [todaySales, yesterdaySales, lowStock, nearExpiry, topProds] = await Promise.all([
         query(
             `SELECT COUNT(*) AS count, COALESCE(SUM(total_amount),0) AS revenue
        FROM sale_orders
-       WHERE business_id = $1 AND sale_at >= $2`,
-            [businessId, todayStart.getTime()]
+       WHERE business_id = $1 AND sale_at >= $2 AND voided_at IS NULL`,
+            [businessId, todayStart]
+        ),
+        query(
+            `SELECT COUNT(*) AS count, COALESCE(SUM(total_amount),0) AS revenue
+       FROM sale_orders
+       WHERE business_id = $1 AND sale_at >= $2 AND sale_at < $3 AND voided_at IS NULL`,
+            [businessId, yesterdayStart, yesterdaySoFar]
         ),
         query(
             `SELECT COUNT(*) AS count FROM products p
-       WHERE p.business_id = $1
+       WHERE p.business_id = $1 AND p.archived_at IS NULL
        AND COALESCE((
          SELECT SUM(CASE WHEN type IN ('stock_in','return') THEN quantity ELSE -quantity END)
          FROM stock_transactions WHERE product_id = p.id
        ), 0) <= p.reorder_level`,
             [businessId]
         ),
+        // Batches that still have stock and expire within 7 days (or already
+        // have). Empty batches don't need anyone's attention.
         query(
             `SELECT COUNT(*) AS count FROM stock_batches sb
        JOIN products p ON p.id = sb.product_id
-       WHERE p.business_id = $1 AND sb.expiry_date <= $2`,
+       WHERE p.business_id = $1 AND p.archived_at IS NULL
+         AND sb.expiry_date IS NOT NULL AND sb.expiry_date > 0 AND sb.expiry_date <= $2
+         AND COALESCE((
+           SELECT SUM(CASE WHEN st.type IN ('stock_in','return') THEN st.quantity ELSE -st.quantity END)
+           FROM stock_transactions st WHERE st.batch_id = sb.id
+         ), 0) > 0`,
             [businessId, Date.now() + 7 * DAY_MS]
         ),
         query(
@@ -124,7 +148,7 @@ const dashboard = asyncHandler(async (req, res) => {
        FROM sale_items si
        JOIN products p ON p.id = si.product_id
        JOIN sale_orders so ON so.id = si.order_id
-       WHERE so.business_id = $1
+       WHERE so.business_id = $1 AND so.voided_at IS NULL
          AND TO_TIMESTAMP(so.sale_at/1000) >= NOW() - INTERVAL '7 days'
        GROUP BY p.id ORDER BY units DESC LIMIT 5`,
             [businessId]
@@ -135,6 +159,10 @@ const dashboard = asyncHandler(async (req, res) => {
         today: {
             orders: parseInt(todaySales.rows[0].count, 10),
             revenue: parseFloat(todaySales.rows[0].revenue),
+        },
+        yesterday_same_time: {
+            orders: parseInt(yesterdaySales.rows[0].count, 10),
+            revenue: parseFloat(yesterdaySales.rows[0].revenue),
         },
         alerts: {
             low_stock: parseInt(lowStock.rows[0].count, 10),
@@ -189,6 +217,7 @@ const inventoryIntelligence = asyncHandler(async (req, res) => {
     const dead = buildDeadStockPayload(productStats, req.query);
     const opportunity = buildOpportunityPayload(productStats, req.query);
     const markdowns = buildMarkdownSuggestions(productStats, req.query);
+    const onSale = buildOnSalePayload(productStats);
 
     res.json({
         generated_at: Date.now(),
@@ -198,6 +227,7 @@ const inventoryIntelligence = asyncHandler(async (req, res) => {
         dead_stock: dead,
         opportunities: opportunity,
         markdowns,
+        on_sale: onSale,
     });
 });
 
@@ -219,33 +249,33 @@ async function getProductInventoryStats(businessId) {
      sales_7d AS (
        SELECT
          st.product_id,
-         COALESCE(SUM(st.quantity), 0) AS units_sold_7d
+         GREATEST(COALESCE(SUM(CASE WHEN st.type = 'sale' THEN st.quantity ELSE -st.quantity END), 0), 0) AS units_sold_7d
        FROM stock_transactions st
        JOIN products p ON p.id = st.product_id
        WHERE p.business_id = $1
-         AND st.type = 'sale'
+         AND st.type IN ('sale', 'return')   -- a voided bill's 'return' nets its sale out
          AND st.txn_at >= $2
        GROUP BY st.product_id
      ),
      sales_30d AS (
        SELECT
          st.product_id,
-         COALESCE(SUM(st.quantity), 0) AS units_sold_30d
+         GREATEST(COALESCE(SUM(CASE WHEN st.type = 'sale' THEN st.quantity ELSE -st.quantity END), 0), 0) AS units_sold_30d
        FROM stock_transactions st
        JOIN products p ON p.id = st.product_id
        WHERE p.business_id = $1
-         AND st.type = 'sale'
+         AND st.type IN ('sale', 'return')
          AND st.txn_at >= $3
        GROUP BY st.product_id
      ),
      sales_prev_30d AS (
        SELECT
          st.product_id,
-         COALESCE(SUM(st.quantity), 0) AS units_sold_prev_30d
+         GREATEST(COALESCE(SUM(CASE WHEN st.type = 'sale' THEN st.quantity ELSE -st.quantity END), 0), 0) AS units_sold_prev_30d
        FROM stock_transactions st
        JOIN products p ON p.id = st.product_id
        WHERE p.business_id = $1
-         AND st.type = 'sale'
+         AND st.type IN ('sale', 'return')
          AND st.txn_at >= $4
          AND st.txn_at < $3
        GROUP BY st.product_id
@@ -288,6 +318,8 @@ async function getProductInventoryStats(businessId) {
        p.unit,
        p.reorder_level,
        p.selling_price,
+       p.regular_price,
+       p.sale_until,
        COALESCE(stock_by_product.current_stock, 0) AS current_stock,
        COALESCE(sales_7d.units_sold_7d, 0) AS units_sold_7d,
        COALESCE(sales_30d.units_sold_30d, 0) AS units_sold_30d,
@@ -308,7 +340,7 @@ async function getProductInventoryStats(businessId) {
      LEFT JOIN sales_prev_30d ON sales_prev_30d.product_id = p.id
      LEFT JOIN last_sale ON last_sale.product_id = p.id
      LEFT JOIN batch_summary ON batch_summary.product_id = p.id
-     WHERE p.business_id = $1`,
+     WHERE p.business_id = $1 AND p.archived_at IS NULL`,
         [
             businessId,
             Date.now() - 7 * DAY_MS,
@@ -324,6 +356,8 @@ async function getProductInventoryStats(businessId) {
         unit: row.unit,
         reorder_level: toNumber(row.reorder_level),
         selling_price: toNumber(row.selling_price),
+        regular_price: row.regular_price == null ? null : toNumber(row.regular_price),
+        sale_until: row.sale_until ? Number(row.sale_until) : null,
         current_stock: Math.max(0, toNumber(row.current_stock)),
         units_sold_7d: toNumber(row.units_sold_7d),
         units_sold_30d: toNumber(row.units_sold_30d),
@@ -353,11 +387,11 @@ async function getBatchInventoryStats(businessId) {
      sales_30d AS (
        SELECT
          st.product_id,
-         COALESCE(SUM(st.quantity), 0) AS units_sold_30d
+         GREATEST(COALESCE(SUM(CASE WHEN st.type = 'sale' THEN st.quantity ELSE -st.quantity END), 0), 0) AS units_sold_30d
        FROM stock_transactions st
        JOIN products p ON p.id = st.product_id
        WHERE p.business_id = $1
-         AND st.type = 'sale'
+         AND st.type IN ('sale', 'return')   -- a voided bill's 'return' nets its sale out
          AND st.txn_at >= $2
        GROUP BY st.product_id
      )
@@ -375,7 +409,7 @@ async function getBatchInventoryStats(businessId) {
      FROM batch_stock bs
      JOIN products p ON p.id = bs.product_id
      LEFT JOIN sales_30d ON sales_30d.product_id = bs.product_id
-     WHERE p.business_id = $1`,
+     WHERE p.business_id = $1 AND p.archived_at IS NULL`,
         [businessId, Date.now() - 30 * DAY_MS]
     );
 
@@ -602,6 +636,7 @@ function buildMarkdownSuggestions(productStats, queryParams = {}) {
         const status = getDeadStockStatus(product, daysSinceLastSale, daysWithoutSale);
 
         if (product.current_stock <= 0) return null;      // nothing to clear
+        if (product.regular_price) return null;            // already on sale
         if (status === 'healthy') return null;             // only slow movers / dead stock
         if (cost <= 0 || sellingPrice <= cost) return null; // no cost data, or already at/below cost
 
@@ -640,6 +675,35 @@ function buildMarkdownSuggestions(productStats, queryParams = {}) {
             markdown_count: items.length,
             blocked_cost_value: round(items.reduce((sum, item) => sum + item.blocked_cost_value, 0)),
             potential_recovery_value: round(items.reduce((sum, item) => sum + item.current_stock * item.suggested_price, 0)),
+        },
+        items,
+    };
+}
+
+// Products currently discounted from the app (regular_price set), with how
+// they've sold since — so the owner can see whether a markdown is working.
+function buildOnSalePayload(productStats) {
+    const now = Date.now();
+    const items = productStats
+        .filter(p => p.regular_price && p.regular_price > p.selling_price && (!p.sale_until || p.sale_until > now))
+        .map(p => ({
+            product_id: p.id,
+            name: p.name,
+            category: p.category,
+            unit: p.unit,
+            regular_price: round(p.regular_price),
+            sale_price: round(p.selling_price),
+            discount_pct: round(((p.regular_price - p.selling_price) / p.regular_price) * 100),
+            sale_until: p.sale_until,
+            current_stock: round(p.current_stock),
+            units_sold_7d: round(p.units_sold_7d),
+        }))
+        .sort((a, b) => b.discount_pct - a.discount_pct);
+
+    return {
+        summary: {
+            on_sale_count: items.length,
+            stock_value_at_sale: round(items.reduce((sum, i) => sum + i.current_stock * i.sale_price, 0)),
         },
         items,
     };

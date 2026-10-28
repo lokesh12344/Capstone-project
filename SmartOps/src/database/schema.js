@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export default appSchema({
-    version: 5,
+    version: 7,
     tables: [
 
         tableSchema({
@@ -15,6 +15,9 @@ export default appSchema({
                 { name: 'reorder_level', type: 'number' },
                 { name: 'schedule_h', type: 'boolean' },
                 { name: 'selling_price', type: 'number' },
+                { name: 'archived_at', type: 'number', isOptional: true },
+                { name: 'regular_price', type: 'number', isOptional: true },
+                { name: 'sale_until', type: 'number', isOptional: true },
                 { name: 'business_id', type: 'string', isIndexed: true },
                 { name: 'sync_status', type: 'string' },
                 { name: 'updated_at', type: 'number' },
@@ -59,6 +62,7 @@ export default appSchema({
                 { name: 'total_amount', type: 'number' },
                 { name: 'payment_mode', type: 'string' },
                 { name: 'sale_at', type: 'number' },
+                { name: 'voided_at', type: 'number', isOptional: true },
                 { name: 'sync_status', type: 'string' },
                 { name: 'updated_at', type: 'number' },
             ],
@@ -89,6 +93,7 @@ export default appSchema({
                 { name: 'address', type: 'string', isOptional: true },
                 { name: 'segment', type: 'string' },
                 { name: 'last_purchase_at', type: 'number' },
+                { name: 'archived_at', type: 'number', isOptional: true },
                 { name: 'sync_status', type: 'string' },
                 { name: 'updated_at', type: 'number' },
             ],
@@ -116,6 +121,7 @@ export default appSchema({
                 { name: 'name', type: 'string' },
                 { name: 'phone', type: 'string', isOptional: true },
                 { name: 'note', type: 'string', isOptional: true },
+                { name: 'archived_at', type: 'number', isOptional: true },
                 { name: 'sync_status', type: 'string' },
                 { name: 'updated_at', type: 'number' },
             ],

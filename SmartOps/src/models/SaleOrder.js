@@ -14,6 +14,7 @@ export default class SaleOrder extends Model {
     @field('total_amount') totalAmount;
     @field('payment_mode') paymentMode;
     @field('sale_at') saleAt;
+    @field('voided_at') voidedAt;
     @field('sync_status') syncStatus;
     @field('updated_at') updatedAt;
 

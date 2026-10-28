@@ -38,6 +38,14 @@ export async function authedRequest(path, token) {
     });
 }
 
+export async function authedMutation(path, token, method, body) {
+    return apiRequest(path, {
+        method,
+        headers: { Authorization: `Bearer ${token}` },
+        body: body ? JSON.stringify(body) : undefined,
+    });
+}
+
 async function safeJson(response) {
     const text = await response.text();
     return text ? JSON.parse(text) : null;

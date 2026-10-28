@@ -2,6 +2,13 @@ const { query } = require('../db/pool');
 const { asyncHandler } = require('../middleware/errors');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+
+// Midnight in India, as a UTC timestamp. The server runs on UTC, so a plain
+// setHours(0) would start "today" at 5:30 am IST.
+function istDayStart(ms = Date.now()) {
+    return Math.floor((ms + IST_OFFSET_MS) / DAY_MS) * DAY_MS - IST_OFFSET_MS;
+}
 
 // GET /api/analytics/sales?period=daily|weekly|monthly
 const sales = asyncHandler(async (req, res) => {
@@ -12,7 +19,8 @@ const sales = asyncHandler(async (req, res) => {
 
     const { rows } = await query(
         `SELECT
-       DATE_TRUNC($1, TO_TIMESTAMP(sale_at / 1000)) AS period,
+       -- bucket by the shop's calendar day (IST), not the server's UTC day
+       DATE_TRUNC($1, TO_TIMESTAMP(sale_at / 1000) AT TIME ZONE 'Asia/Kolkata') AS period,
        COUNT(*)                                      AS order_count,
        SUM(total_amount)                             AS revenue,
        SUM(CASE WHEN payment_mode='cash'   THEN total_amount ELSE 0 END) AS cash,
@@ -66,7 +74,7 @@ const customerStats = asyncHandler(async (req, res) => {
          ON so.customer_id = c.id
          AND TO_TIMESTAMP(so.sale_at / 1000) >= NOW() - INTERVAL '30 days'
          AND so.voided_at IS NULL
-       WHERE c.business_id = $1
+       WHERE c.business_id = $1 AND c.archived_at IS NULL
        GROUP BY c.id
      )
      SELECT *,
@@ -95,15 +103,23 @@ const customerStats = asyncHandler(async (req, res) => {
 // GET /api/analytics/dashboard
 const dashboard = asyncHandler(async (req, res) => {
     const businessId = req.business.id;
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
+    const todayStart = istDayStart();
+    const yesterdayStart = todayStart - DAY_MS;
+    // Same time of day yesterday, so "vs yesterday" compares like with like.
+    const yesterdaySoFar = Date.now() - DAY_MS;
 
-    const [todaySales, lowStock, nearExpiry, topProds] = await Promise.all([
+    const [todaySales, yesterdaySales, lowStock, nearExpiry, topProds] = await Promise.all([
         query(
             `SELECT COUNT(*) AS count, COALESCE(SUM(total_amount),0) AS revenue
        FROM sale_orders
        WHERE business_id = $1 AND sale_at >= $2 AND voided_at IS NULL`,
-            [businessId, todayStart.getTime()]
+            [businessId, todayStart]
+        ),
+        query(
+            `SELECT COUNT(*) AS count, COALESCE(SUM(total_amount),0) AS revenue
+       FROM sale_orders
+       WHERE business_id = $1 AND sale_at >= $2 AND sale_at < $3 AND voided_at IS NULL`,
+            [businessId, yesterdayStart, yesterdaySoFar]
         ),
         query(
             `SELECT COUNT(*) AS count FROM products p
@@ -114,10 +130,17 @@ const dashboard = asyncHandler(async (req, res) => {
        ), 0) <= p.reorder_level`,
             [businessId]
         ),
+        // Batches that still have stock and expire within 7 days (or already
+        // have). Empty batches don't need anyone's attention.
         query(
             `SELECT COUNT(*) AS count FROM stock_batches sb
        JOIN products p ON p.id = sb.product_id
-       WHERE p.business_id = $1 AND sb.expiry_date <= $2`,
+       WHERE p.business_id = $1 AND p.archived_at IS NULL
+         AND sb.expiry_date IS NOT NULL AND sb.expiry_date > 0 AND sb.expiry_date <= $2
+         AND COALESCE((
+           SELECT SUM(CASE WHEN st.type IN ('stock_in','return') THEN st.quantity ELSE -st.quantity END)
+           FROM stock_transactions st WHERE st.batch_id = sb.id
+         ), 0) > 0`,
             [businessId, Date.now() + 7 * DAY_MS]
         ),
         query(
@@ -136,6 +159,10 @@ const dashboard = asyncHandler(async (req, res) => {
         today: {
             orders: parseInt(todaySales.rows[0].count, 10),
             revenue: parseFloat(todaySales.rows[0].revenue),
+        },
+        yesterday_same_time: {
+            orders: parseInt(yesterdaySales.rows[0].count, 10),
+            revenue: parseFloat(yesterdaySales.rows[0].revenue),
         },
         alerts: {
             low_stock: parseInt(lowStock.rows[0].count, 10),

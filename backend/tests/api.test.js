@@ -170,6 +170,44 @@ describe('discounts', () => {
     });
 });
 
+describe('dashboard discounts', () => {
+    test('owner applies a discount, the phone pulls it, then ends it', async () => {
+        const { token } = await registerShop();
+        const p = productRow({ selling_price: 60 });
+        await push(token, { products: { created: [p] } });
+
+        const res = await api.post(`/api/products/${p.id}/discount`).set(auth(token)).send({ sale_price: 45, days: 7 });
+        expect(res.status).toBe(200);
+        expect(res.body.product).toMatchObject({ sale_price: 45, regular_price: 60 });
+        expect(res.body.product.sale_until).toBeGreaterThan(Date.now());
+
+        const pull = await api.get('/api/sync/pull?last_pulled_at=0&schema_version=7').set(auth(token));
+        expect(pull.body.changes.products.created.find(r => r.id === p.id)).toMatchObject({ selling_price: 45, regular_price: 60 });
+
+        const end = await api.delete(`/api/products/${p.id}/discount`).set(auth(token));
+        expect(end.status).toBe(200);
+        const { rows } = await pool.query('SELECT selling_price, regular_price, sale_until FROM products WHERE id = $1', [p.id]);
+        expect(rows[0]).toEqual({ selling_price: 60, regular_price: null, sale_until: null });
+    });
+
+    test('a sale price at or above the normal price is rejected', async () => {
+        const { token } = await registerShop();
+        const p = productRow({ selling_price: 60 });
+        await push(token, { products: { created: [p] } });
+        const res = await api.post(`/api/products/${p.id}/discount`).set(auth(token)).send({ sale_price: 60 });
+        expect(res.status).toBe(422);
+    });
+
+    test('another shop cannot discount my product', async () => {
+        const mine = await registerShop();
+        const other = await registerShop();
+        const p = productRow({ selling_price: 60 });
+        await push(mine.token, { products: { created: [p] } });
+        const res = await api.post(`/api/products/${p.id}/discount`).set(auth(other.token)).send({ sale_price: 30 });
+        expect(res.status).toBe(404);
+    });
+});
+
 describe('on-sale analytics', () => {
     test('intelligence lists products on sale, but not ones whose sale has ended', async () => {
         const { token } = await registerShop();
@@ -227,6 +265,15 @@ describe('staff', () => {
         await push(staff.token, { products: { updated: [{ ...p, selling_price: 1, updated_at: Date.now() }] } });
         const { rows } = await pool.query('SELECT selling_price FROM products WHERE id = $1', [p.id]);
         expect(rows[0].selling_price).toBe(60);
+    });
+
+    test('staff cannot use the dashboard discount endpoint', async () => {
+        const owner = await registerShop();
+        const staff = await addStaff(owner.token);
+        const p = productRow({ selling_price: 60 });
+        await push(owner.token, { products: { created: [p] } });
+        const res = await api.post(`/api/products/${p.id}/discount`).set(auth(staff.token)).send({ sale_price: 30 });
+        expect(res.status).toBe(403);
     });
 
     test('staff cannot put a product on sale', async () => {

@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { loginRequest } from '../lib/api';
+import Icon from '../components/Icon';
 
-export default function LoginPage({ auth }) {
+export default function LoginPage({ auth, theme, onToggleTheme }) {
     const navigate = useNavigate();
     const [form, setForm] = useState({ phone: '', password: '' });
     const [loading, setLoading] = useState(false);
@@ -30,7 +31,7 @@ export default function LoginPage({ auth }) {
         setLoading(true);
         try {
             const payload = await loginRequest(form);
-            auth.login({ token: payload.token, business: payload.business });
+            auth.login({ token: payload.token, business: payload.business, role: payload.role || 'owner' });
             navigate('/dashboard', { replace: true });
         } catch (err) {
             setError(err.message || 'Login failed');
@@ -41,6 +42,10 @@ export default function LoginPage({ auth }) {
 
     return (
         <main className="login-page">
+            <button type="button" className="control control--icon login-theme" onClick={onToggleTheme}
+                aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}>
+                <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={18} />
+            </button>
             <form className="login-card" onSubmit={handleSubmit}>
                 <div className="login-brand">
                     <span className="login-logo">SmartOps</span>

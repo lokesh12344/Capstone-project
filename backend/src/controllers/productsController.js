@@ -48,22 +48,21 @@ const get = asyncHandler(async (req, res) => {
 // GET /api/products/low-stock
 const lowStock = asyncHandler(async (req, res) => {
     const { rows } = await query(
-        `SELECT
-       p.id, p.name, p.category, p.unit, p.reorder_level,
-       COALESCE(
-         (SELECT SUM(CASE WHEN st.type IN ('stock_in','return') THEN st.quantity ELSE -st.quantity END)
-          FROM stock_transactions st WHERE st.product_id = p.id),
-         0
-       ) AS current_stock
-     FROM products p
-     WHERE p.business_id = $1 AND p.archived_at IS NULL
-     HAVING COALESCE(
-       (SELECT SUM(CASE WHEN st.type IN ('stock_in','return') THEN st.quantity ELSE -st.quantity END)
-        FROM stock_transactions st WHERE st.product_id = p.id),
-       0
-     ) <= p.reorder_level
-     GROUP BY p.id
-     ORDER BY current_stock ASC`,
+        // Stock is derived per product in a subquery, then filtered outside it —
+        // a WHERE can't see the current_stock alias, and HAVING isn't for this.
+        `SELECT * FROM (
+       SELECT
+         p.id, p.name, p.category, p.unit, p.reorder_level,
+         COALESCE(
+           (SELECT SUM(CASE WHEN st.type IN ('stock_in','return') THEN st.quantity ELSE -st.quantity END)
+            FROM stock_transactions st WHERE st.product_id = p.id),
+           0
+         ) AS current_stock
+       FROM products p
+       WHERE p.business_id = $1 AND p.archived_at IS NULL
+     ) s
+     WHERE s.current_stock <= s.reorder_level
+     ORDER BY s.current_stock ASC`,
         [req.business.id]
     );
     res.json({ low_stock: rows });

@@ -119,6 +119,30 @@ describe('sync', () => {
     });
 });
 
+describe('products', () => {
+    test('low-stock lists products at or below reorder level, skipping archived ones', async () => {
+        const { token } = await registerShop();
+        const low = productRow({ name: 'Low' });
+        const fine = productRow({ name: 'Fine' });
+        const gone = productRow({ name: 'Archived', archived_at: Date.now() });
+        const stockIn = (p, qty) => {
+            const batch = { id: randomUUID(), product_id: p.id, quantity: qty, cost_price: 10, updated_at: Date.now() };
+            const txn = { id: randomUUID(), product_id: p.id, batch_id: batch.id, type: 'stock_in', quantity: qty, txn_at: Date.now() };
+            return { batch, txn };
+        };
+        const ins = [stockIn(low, 2), stockIn(fine, 50)];
+        await push(token, {
+            products: { created: [low, fine, gone] },
+            stock_batches: { created: ins.map(i => i.batch) },
+            stock_transactions: { created: ins.map(i => i.txn) },
+        });
+
+        const res = await api.get('/api/products/low-stock').set(auth(token));
+        expect(res.status).toBe(200);
+        expect(res.body.low_stock.map(r => r.name)).toEqual(['Low']);
+    });
+});
+
 describe('shop profile', () => {
     test('owner can set UPI ID and address', async () => {
         const { token } = await registerShop();

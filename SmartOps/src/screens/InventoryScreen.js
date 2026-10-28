@@ -5,7 +5,7 @@ import {
     KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { getAllProducts, getStockLevels, updateProduct } from '../database/actions';
+import { getAllProducts, getStockLevels, updateProduct, setProductArchived } from '../database/actions';
 import { useSession } from '../services/session';
 import { Badge, EmptyState, PrimaryButton, GhostButton } from '../../components/UI';
 import { useAppBadges } from '../hooks/useAppBadges';
@@ -13,10 +13,10 @@ import { AppIcon } from '../theme/icons';
 import { colors, spacing, radius, font } from '../theme';
 
 export default function InventoryScreen({ navigation }) {
-    const [products, setProducts] = useState([]);
+    const [allProducts, setAllProducts] = useState([]);   // includes archived
     const [stocks, setStocks] = useState({});  // { productId: number }
     const [search, setSearch] = useState('');
-    const [filter, setFilter] = useState('all'); // 'all' | 'low' | 'out'
+    const [filter, setFilter] = useState('all'); // 'all' | 'low' | 'out' | 'archived'
     const [refreshing, setRefreshing] = useState(false);
     const [editing, setEditing] = useState(null);   // product being edited
     // Staff can't change the product's price (the server ignores it too).
@@ -26,10 +26,11 @@ export default function InventoryScreen({ navigation }) {
     const { refresh: refreshBadges, markLowStockSeen } = useAppBadges();
 
     const load = useCallback(async () => {
-        const prods = await getAllProducts();
-        const stockMap = await getStockLevels(prods);  // one query instead of one per product
-        setProducts(prods);
+        const everything = await getAllProducts({ includeArchived: true });
+        const stockMap = await getStockLevels(everything);  // one query instead of one per product
+        setAllProducts(everything);
         setStocks(stockMap);
+        const prods = everything.filter(p => !p.archivedAt);
 
         // Every low/out-of-stock product is visibly flagged in this list —
         // having looked at it once is enough to drop it off Home/the tab badge.
@@ -69,7 +70,32 @@ export default function InventoryScreen({ navigation }) {
         }
     }
 
-    const filtered = products.filter(p => {
+    const products = allProducts.filter(p => !p.archivedAt);
+    const archived = allProducts.filter(p => p.archivedAt);
+
+    function toggleArchive() {
+        const product = editing;
+        if (product.archivedAt) {
+            return setProductArchived(product.id, false).then(() => { setEditing(null); load(); refreshBadges(); });
+        }
+        Alert.alert(
+            'Archive product',
+            `${product.name} will be hidden from Inventory, alerts, reorder and sales. Past bills keep it. You can restore it from the Archived filter.`,
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Archive', style: 'destructive', onPress: async () => {
+                        await setProductArchived(product.id, true);
+                        setEditing(null);
+                        await load();
+                        refreshBadges();
+                    },
+                },
+            ]
+        );
+    }
+
+    const filtered = (filter === 'archived' ? archived : products).filter(p => {
         const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) ||
             (p.brand || '').toLowerCase().includes(search.toLowerCase());
         const stock = stocks[p.id] ?? 0;
@@ -104,18 +130,20 @@ export default function InventoryScreen({ navigation }) {
                     the rest of the stock domain (alerts, reorder) instead of a back button. */}
                 <View style={s.header}>
                     <Text style={s.title}>Inventory</Text>
-                    <View style={s.headerActions}>
-                        <TouchableOpacity style={s.headerIconBtn} onPress={() => navigation.navigate('Alerts')}>
-                            <AppIcon name="alerts" size="chip" color={(lowCount + outCount) > 0 ? colors.amber : colors.textMuted} />
-                        </TouchableOpacity>
-                        <TouchableOpacity style={s.headerIconBtn} onPress={() => navigation.navigate('Reorder')}>
-                            <AppIcon name="restock" size="chip" />
-                        </TouchableOpacity>
-                        <TouchableOpacity style={s.headerIconBtn} onPress={() => navigation.navigate('ProductRegistration')}>
-                            <AppIcon name="add" size="chip" color={colors.teal} />
-                        </TouchableOpacity>
-                    </View>
                 </View>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.headerActions}>
+                    {[
+                        { label: 'New product', icon: 'add', color: colors.teal, to: 'ProductRegistration' },
+                        { label: 'Alerts', icon: 'alerts', color: (lowCount + outCount) > 0 ? colors.amber : colors.textMuted, to: 'Alerts' },
+                        { label: 'Reorder', icon: 'restock', to: 'Reorder' },
+                        { label: 'Purchase order', icon: 'purchaseOrder', to: 'PurchaseOrder' },
+                    ].map(a => (
+                        <TouchableOpacity key={a.to} style={s.actionChip} onPress={() => navigation.navigate(a.to)}>
+                            <AppIcon name={a.icon} size="inline" color={a.color} />
+                            <Text style={s.actionChipText}>{a.label}</Text>
+                        </TouchableOpacity>
+                    ))}
+                </ScrollView>
 
                 {/* Summary strip */}
                 <View style={s.stripRow}>
@@ -150,6 +178,7 @@ export default function InventoryScreen({ navigation }) {
                         { key: 'all', label: 'All' },
                         { key: 'low', label: `Low (${lowCount})` },
                         { key: 'out', label: `Out (${outCount})` },
+                        ...(archived.length > 0 ? [{ key: 'archived', label: `Archived (${archived.length})` }] : []),
                     ].map(f => (
                         <TouchableOpacity
                             key={f.key}
@@ -254,6 +283,14 @@ export default function InventoryScreen({ navigation }) {
                             onPress={() => { const id = editing.id; setEditing(null); navigation.navigate('StockIn', { productId: id }); }}
                             style={{ marginTop: spacing.sm }}
                         />
+                        {!staffMode && (
+                            <GhostButton
+                                label={editing?.archivedAt ? 'Restore product' : 'Archive product (discontinued)'}
+                                color={editing?.archivedAt ? colors.teal : colors.red}
+                                onPress={toggleArchive}
+                                style={{ marginTop: spacing.sm }}
+                            />
+                        )}
                     </TouchableOpacity>
                     </TouchableOpacity>
                 </KeyboardAvoidingView>
@@ -278,15 +315,16 @@ const s = StyleSheet.create({
     header: {
         flexDirection: 'row', alignItems: 'center',
         justifyContent: 'space-between',
-        paddingTop: spacing.xl, marginBottom: spacing.xl,
+        paddingTop: spacing.xl, marginBottom: spacing.md,
     },
     title: { color: colors.textPrimary, fontSize: font.lg, fontWeight: '700' },
-    headerActions: { flexDirection: 'row', gap: spacing.sm },
-    headerIconBtn: {
-        width: 38, height: 38, borderRadius: radius.md,
+    headerActions: { flexDirection: 'row', gap: spacing.sm, paddingBottom: spacing.lg },
+    actionChip: {
+        flexDirection: 'row', alignItems: 'center', gap: 6,
+        height: 36, paddingHorizontal: spacing.md, borderRadius: radius.full,
         backgroundColor: colors.bgCard, borderWidth: 1, borderColor: colors.border,
-        alignItems: 'center', justifyContent: 'center',
     },
+    actionChipText: { color: colors.textPrimary, fontSize: font.sm, fontWeight: '600' },
 
     stripRow: {
         flexDirection: 'row',

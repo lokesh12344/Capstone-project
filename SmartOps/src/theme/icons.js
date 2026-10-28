@@ -17,6 +17,7 @@ import {
     Barcode, CheckCircle, WifiSlash, Flashlight, Keyboard,
     X, CaretRight, MapPin, Eye, EyeSlash,
     ShareNetwork, WhatsappLogo, Microphone, Truck, IdentificationBadge, Storefront,
+    Phone, Prohibit, CloudCheck, CloudArrowUp, ClipboardText, PencilSimple,
 } from 'phosphor-react-native';
 import { colors } from './index';
 
@@ -53,6 +54,12 @@ const ICONS = {
     suppliers: Truck,
     staff: IdentificationBadge,
     shop: Storefront,
+    phone: Phone,
+    void: Prohibit,
+    synced: CloudCheck,
+    pending: CloudArrowUp,
+    purchaseOrder: ClipboardText,
+    edit: PencilSimple,
 };
 
 // Three sizes only: inline text/list rows, the bottom tab bar, and action chips

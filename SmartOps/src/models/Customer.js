@@ -14,6 +14,7 @@ export default class Customer extends Model {
     @field('address') address;
     @field('segment') segment;
     @field('last_purchase_at') lastPurchaseAt;
+    @field('archived_at') archivedAt;
     @field('sync_status') syncStatus;
     @field('updated_at') updatedAt;
 

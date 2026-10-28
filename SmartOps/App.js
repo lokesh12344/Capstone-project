@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { View, ActivityIndicator } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -10,7 +11,9 @@ import database from './src/database';
 import { colors } from './src/theme';
 import { AppIcon } from './src/theme/icons';
 import { AppBadgesProvider, useAppBadges } from './src/hooks/useAppBadges';
-import { logoutAndSync } from './src/sync/syncEngine';
+import { logoutAndSync, getAuthToken } from './src/sync/syncEngine';
+import { getSession } from './src/services/session';
+import { PhonePromptHost } from './components/PhonePrompt';
 import FabTabButton from './components/FabTabButton';
 
 import LoginScreen from './src/screens/LoginScreen';
@@ -112,11 +115,21 @@ function MainTabs({ name }) {
 }
 
 export default function App() {
-    useEffect(() => {
-        initApp();
-    }, []);
+    const [booting, setBooting] = useState(true);
     const [authed, setAuthed] = useState(false);
     const [name, setName] = useState('');
+
+    // Stay signed in across launches: initApp restores the saved token and
+    // shop profile, so skip the login screen when one is there.
+    useEffect(() => {
+        initApp().finally(() => {
+            if (getAuthToken()) {
+                setName(getSession().business?.name || '');
+                setAuthed(true);
+            }
+            setBooting(false);
+        });
+    }, []);
     function handleLogin(token, business) {
         setAuthed(true);
         setName(business.name);
@@ -126,6 +139,10 @@ export default function App() {
         // Final sync push before credentials are wiped
         await logoutAndSync();
         setAuthed(false);
+    }
+
+    if (booting) {
+        return <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color={colors.teal} /></View>;
     }
 
     if (!authed) {
@@ -169,6 +186,7 @@ export default function App() {
                         </Stack.Screen>
                     </Stack.Navigator>
                 </NavigationContainer>
+                <PhonePromptHost />
             </AppBadgesProvider>
         </DatabaseProvider>
     );

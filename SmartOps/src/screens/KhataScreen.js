@@ -2,11 +2,12 @@ import React, { useState, useCallback } from 'react';
 import {
     View, Text, ScrollView, TouchableOpacity, TextInput,
     StyleSheet, RefreshControl, Modal, ActivityIndicator, Alert,
-    KeyboardAvoidingView, Platform,
+    KeyboardAvoidingView, Platform, Linking,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import {
     getOutstandingCustomers, getCustomerLedger, recordRepayment,
+    getSettledKhataCustomers, VOID_NOTE,
 } from '../database/actions';
 import { PrimaryButton, GhostButton, EmptyState } from '../../components/UI';
 import { useAppBadges } from '../hooks/useAppBadges';
@@ -16,6 +17,8 @@ import { sendKhataReminder } from '../services/share';
 
 export default function KhataScreen({ navigation }) {
     const [rows, setRows] = useState([]);           // [{ customer, balance }]
+    const [settled, setSettled] = useState([]);     // paid-up khata customers
+    const [showSettled, setShowSettled] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
     const [selected, setSelected] = useState(null); // { customer, balance }
     const [ledger, setLedger] = useState([]);
@@ -25,8 +28,9 @@ export default function KhataScreen({ navigation }) {
     const { refresh: refreshBadges, markKhataSeen } = useAppBadges();
 
     const load = useCallback(async () => {
-        const outstanding = await getOutstandingCustomers();
+        const [outstanding, paidUp] = await Promise.all([getOutstandingCustomers(), getSettledKhataCustomers()]);
         setRows(outstanding);
+        setSettled(paidUp);
 
         // Every debtor is right there on the list — having looked at it once
         // is enough to drop them off Home/the tab badge. A customer who pays
@@ -101,8 +105,9 @@ export default function KhataScreen({ navigation }) {
                     directory (address, contact) rather than going back anywhere. */}
                 <View style={s.header}>
                     <Text style={s.title}>Khata</Text>
-                    <TouchableOpacity style={s.headerIconBtn} onPress={() => navigation.navigate('Customers')}>
+                    <TouchableOpacity style={s.customersBtn} onPress={() => navigation.navigate('Customers')}>
                         <AppIcon name="customers" size="chip" />
+                        <Text style={s.customersBtnText}>Customers</Text>
                     </TouchableOpacity>
                 </View>
 
@@ -115,7 +120,33 @@ export default function KhataScreen({ navigation }) {
                     </Text>
                 </View>
 
-                {rows.length === 0 ? (
+                {settled.length > 0 && (
+                    <View style={s.segment}>
+                        {[['due', `Owes you (${rows.length})`], ['settled', `Paid up (${settled.length})`]].map(([key, label]) => {
+                            const on = (key === 'settled') === showSettled;
+                            return (
+                                <TouchableOpacity key={key} style={[s.segmentBtn, on && s.segmentBtnOn]} onPress={() => setShowSettled(key === 'settled')}>
+                                    <Text style={[s.segmentText, on && s.segmentTextOn]}>{label}</Text>
+                                </TouchableOpacity>
+                            );
+                        })}
+                    </View>
+                )}
+
+                {showSettled ? (
+                    settled.map(row => (
+                        <TouchableOpacity key={row.customer.id} style={s.customerRow} activeOpacity={0.75} onPress={() => openCustomer(row)}>
+                            <View style={s.avatar}>
+                                <Text style={s.avatarText}>{(row.customer.name || '?').charAt(0).toUpperCase()}</Text>
+                            </View>
+                            <View style={{ flex: 1 }}>
+                                <Text style={s.customerName} numberOfLines={1}>{row.customer.name}</Text>
+                                <Text style={s.customerPhone}>{row.customer.phone}</Text>
+                            </View>
+                            <Text style={s.settledLabel}>Paid up ›</Text>
+                        </TouchableOpacity>
+                    ))
+                ) : rows.length === 0 ? (
                     <EmptyState
                         icon={<AppIcon name="allClear" size={40} color={colors.teal} />}
                         title="No pending credit"
@@ -158,7 +189,22 @@ export default function KhataScreen({ navigation }) {
                         <View style={s.modalHeader}>
                             <View>
                                 <Text style={s.modalTitle}>{selected?.customer?.name}</Text>
-                                <Text style={s.modalPhone}>{selected?.customer?.phone}</Text>
+                                <Text style={s.modalPhone}>{selected?.customer?.phone || 'No phone number'}</Text>
+                                <View style={s.contactRow}>
+                                    {!!selected?.customer?.phone && (
+                                        <TouchableOpacity style={s.contactChip} onPress={() => Linking.openURL(`tel:${selected.customer.phone}`)}>
+                                            <AppIcon name="phone" size="inline" color={colors.teal} />
+                                            <Text style={s.contactChipText}>Call</Text>
+                                        </TouchableOpacity>
+                                    )}
+                                    <TouchableOpacity
+                                        style={s.contactChip}
+                                        onPress={() => { const id = selected.customer.id; closeCustomer(); navigation.navigate('Customers', { openId: id }); }}
+                                    >
+                                        <AppIcon name="edit" size="inline" color={colors.teal} />
+                                        <Text style={s.contactChipText}>Edit details</Text>
+                                    </TouchableOpacity>
+                                </View>
                             </View>
                             <TouchableOpacity onPress={closeCustomer}>
                                 <AppIcon name="close" size="chip" color={colors.red} />
@@ -170,12 +216,21 @@ export default function KhataScreen({ navigation }) {
                             <Text style={s.modalBalanceValue}>₹{selected?.balance?.toFixed(2)}</Text>
                         </View>
 
+                        {selected?.balance > 0.005 && (<>
                         <TouchableOpacity
                             style={s.remindBtn}
                             activeOpacity={0.8}
-                            onPress={() => selected && sendKhataReminder({
-                                customer: selected.customer, balance: selected.balance, entries: ledger,
-                            })}
+                            onPress={async () => {
+                                if (!selected) return;
+                                const phone = await sendKhataReminder({
+                                    customer: selected.customer, balance: selected.balance, entries: ledger,
+                                });
+                                // A number captured just now should show in the header and list.
+                                if (phone) {
+                                    setSelected(sel => sel && { ...sel, customer: { id: sel.customer.id, name: sel.customer.name, phone } });
+                                    load();
+                                }
+                            }}
                         >
                             <AppIcon name="whatsapp" size="chip" color={colors.teal} />
                             <Text style={s.remindBtnText}>Send reminder on WhatsApp</Text>
@@ -205,6 +260,7 @@ export default function KhataScreen({ navigation }) {
                             loading={saving}
                             style={{ marginTop: spacing.sm }}
                         />
+                        </>)}
 
                         {/* Ledger history */}
                         <Text style={[s.inputLabel, { marginTop: spacing.xl }]}>HISTORY</Text>
@@ -216,11 +272,12 @@ export default function KhataScreen({ navigation }) {
                             <ScrollView style={s.historyList} showsVerticalScrollIndicator={false}>
                                 {ledger.map(entry => {
                                     const isRepayment = entry.type === 'repayment';
+                                    const isVoid = isRepayment && entry.note === VOID_NOTE;
                                     return (
                                         <View key={entry.id} style={s.historyRow}>
                                             <View style={{ flex: 1 }}>
                                                 <Text style={s.historyType}>
-                                                    {isRepayment ? 'Repayment' : 'Credit sale'}
+                                                    {isVoid ? 'Bill voided' : isRepayment ? 'Repayment' : 'Credit sale'}
                                                 </Text>
                                                 <Text style={s.historyDate}>
                                                     {new Date(entry.entryAt).toLocaleDateString('en-IN', {
@@ -255,11 +312,12 @@ const s = StyleSheet.create({
         paddingTop: spacing.xl, marginBottom: spacing.xl,
     },
     title: { color: colors.textPrimary, fontSize: font.lg, fontWeight: '700' },
-    headerIconBtn: {
-        width: 38, height: 38, borderRadius: radius.md,
+    customersBtn: {
+        flexDirection: 'row', alignItems: 'center', gap: spacing.xs,
+        height: 38, paddingHorizontal: spacing.md, borderRadius: radius.md,
         backgroundColor: colors.bgCard, borderWidth: 1, borderColor: colors.border,
-        alignItems: 'center', justifyContent: 'center',
     },
+    customersBtnText: { color: colors.textPrimary, fontSize: font.sm, fontWeight: '600' },
 
     totalCard: {
         backgroundColor: colors.bgCard,
@@ -284,6 +342,22 @@ const s = StyleSheet.create({
     avatarText: { color: colors.textPrimary, fontSize: font.md, fontWeight: '700' },
     customerName: { color: colors.textPrimary, fontSize: font.md, fontWeight: '600', marginBottom: 2 },
     customerPhone: { color: colors.textMuted, fontSize: font.xs },
+    segment: {
+        flexDirection: 'row', backgroundColor: colors.bgCard, borderRadius: radius.md,
+        borderWidth: 1, borderColor: colors.border, padding: 3, marginBottom: spacing.md,
+    },
+    segmentBtn: { flex: 1, alignItems: 'center', paddingVertical: spacing.sm, borderRadius: radius.sm },
+    segmentBtnOn: { backgroundColor: colors.tealFaint },
+    segmentText: { color: colors.textMuted, fontSize: font.sm, fontWeight: '600' },
+    segmentTextOn: { color: colors.teal },
+    settledLabel: { color: colors.teal, fontSize: font.sm, fontWeight: '600' },
+    contactRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
+    contactChip: {
+        flexDirection: 'row', alignItems: 'center', gap: 4,
+        backgroundColor: colors.tealFaint, borderRadius: radius.full,
+        paddingHorizontal: spacing.md, paddingVertical: 6,
+    },
+    contactChipText: { color: colors.teal, fontSize: font.xs, fontWeight: '700' },
     remindBtn: {
         flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm,
         borderWidth: 1, borderColor: colors.teal + '55', backgroundColor: colors.tealFaint,

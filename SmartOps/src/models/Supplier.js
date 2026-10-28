@@ -8,6 +8,7 @@ export default class Supplier extends Model {
     @field('name') name;
     @field('phone') phone;
     @field('note') note;
+    @field('archived_at') archivedAt;
     @field('sync_status') syncStatus;
     @field('updated_at') updatedAt;
 }

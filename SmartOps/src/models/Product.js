@@ -18,6 +18,7 @@ export default class Product extends Model {
     @field('reorder_level') reorderLevel;
     @field('schedule_h') scheduleH;
     @field('selling_price') sellingPrice;
+    @field('archived_at') archivedAt;
     @field('business_id') businessId;
     @field('sync_status') syncStatus;
     @field('updated_at') updatedAt;   // plain @field not @date — keeps it as number

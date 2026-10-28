@@ -1,7 +1,8 @@
 import { Alert, Linking } from 'react-native';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
-import { getOrderForBill } from '../database/actions';
+import { getOrderForBill, updateCustomerDetails } from '../database/actions';
+import { askPhone } from '../../components/PhonePrompt';
 import { getSession } from './session';
 
 // WhatsApp sharing without the paid Business API: a wa.me deep link opens the
@@ -68,13 +69,27 @@ export function buildReminderText({ customer, balance, entries = [] }) {
     ].filter(v => v !== null).join('\n');
 }
 
+// When a saved customer has no number, ask for one right here and store it on
+// their record — so the send goes through instead of dead-ending in an alert.
+async function ensureCustomerPhone(customer, purpose) {
+    if (customer?.phone) return customer.phone;
+    const phone = await askPhone({
+        title: customer ? `Phone for ${customer.name}` : 'Send bill to',
+        message: customer
+            ? `Add their WhatsApp number to ${purpose}. It will be saved for next time.`
+            : `Walk-in sale — enter the WhatsApp number to ${purpose}.`,
+    });
+    if (!phone) return null;
+    if (customer) await updateCustomerDetails({ customerId: customer.id, phone });
+    return phone;
+}
+
+// Returns the number used (so callers can refresh what they show), or null if cancelled.
 export async function sendKhataReminder({ customer, balance, entries }) {
-    if (!customer?.phone) {
-        Alert.alert('No phone number', `Add a phone number for ${customer?.name || 'this customer'} to send a reminder.`);
-        return false;
-    }
-    await openWhatsApp(customer.phone, buildReminderText({ customer, balance, entries }));
-    return true;
+    const phone = await ensureCustomerPhone(customer, 'send the reminder');
+    if (!phone) return null;
+    await openWhatsApp(phone, buildReminderText({ customer, balance, entries }));
+    return phone;
 }
 
 // ── Bills ───────────────────────────────────────────────────────────────────────
@@ -170,5 +185,7 @@ export async function sendBillOnWhatsApp(orderId) {
         ``,
         `Thank you! 🙏`,
     ].join('\n');
-    await openWhatsApp(customer?.phone, text);
+    const phone = await ensureCustomerPhone(customer, 'send the bill');
+    if (!phone) return;
+    await openWhatsApp(phone, text);
 }

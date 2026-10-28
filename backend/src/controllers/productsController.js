@@ -16,7 +16,7 @@ const list = asyncHandler(async (req, res) => {
         WHERE sb.product_id = p.id AND sb.expiry_date > $2
        ) AS nearest_expiry
      FROM products p
-     WHERE p.business_id = $1
+     WHERE p.business_id = $1 AND p.archived_at IS NULL
      ORDER BY p.name ASC`,
         [req.business.id, Date.now()]
     );
@@ -56,7 +56,7 @@ const lowStock = asyncHandler(async (req, res) => {
          0
        ) AS current_stock
      FROM products p
-     WHERE p.business_id = $1
+     WHERE p.business_id = $1 AND p.archived_at IS NULL
      HAVING COALESCE(
        (SELECT SUM(CASE WHEN st.type IN ('stock_in','return') THEN st.quantity ELSE -st.quantity END)
         FROM stock_transactions st WHERE st.product_id = p.id),

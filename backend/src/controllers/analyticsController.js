@@ -19,7 +19,7 @@ const sales = asyncHandler(async (req, res) => {
        SUM(CASE WHEN payment_mode='upi'    THEN total_amount ELSE 0 END) AS upi,
        SUM(CASE WHEN payment_mode='credit' THEN total_amount ELSE 0 END) AS credit
      FROM sale_orders
-     WHERE business_id = $2
+     WHERE business_id = $2 AND voided_at IS NULL
        AND TO_TIMESTAMP(sale_at / 1000) >= NOW() - INTERVAL '90 days'
      GROUP BY 1
      ORDER BY 1 DESC`,
@@ -40,7 +40,7 @@ const topProducts = asyncHandler(async (req, res) => {
      FROM sale_items si
      JOIN products p ON p.id = si.product_id
      JOIN sale_orders so ON so.id = si.order_id
-     WHERE so.business_id = $1
+     WHERE so.business_id = $1 AND so.voided_at IS NULL
        AND TO_TIMESTAMP(so.sale_at / 1000) >= NOW() - INTERVAL '30 days'
      GROUP BY p.id
      ORDER BY units_sold DESC
@@ -65,6 +65,7 @@ const customerStats = asyncHandler(async (req, res) => {
        LEFT JOIN sale_orders so
          ON so.customer_id = c.id
          AND TO_TIMESTAMP(so.sale_at / 1000) >= NOW() - INTERVAL '30 days'
+         AND so.voided_at IS NULL
        WHERE c.business_id = $1
        GROUP BY c.id
      )
@@ -101,12 +102,12 @@ const dashboard = asyncHandler(async (req, res) => {
         query(
             `SELECT COUNT(*) AS count, COALESCE(SUM(total_amount),0) AS revenue
        FROM sale_orders
-       WHERE business_id = $1 AND sale_at >= $2`,
+       WHERE business_id = $1 AND sale_at >= $2 AND voided_at IS NULL`,
             [businessId, todayStart.getTime()]
         ),
         query(
             `SELECT COUNT(*) AS count FROM products p
-       WHERE p.business_id = $1
+       WHERE p.business_id = $1 AND p.archived_at IS NULL
        AND COALESCE((
          SELECT SUM(CASE WHEN type IN ('stock_in','return') THEN quantity ELSE -quantity END)
          FROM stock_transactions WHERE product_id = p.id
@@ -124,7 +125,7 @@ const dashboard = asyncHandler(async (req, res) => {
        FROM sale_items si
        JOIN products p ON p.id = si.product_id
        JOIN sale_orders so ON so.id = si.order_id
-       WHERE so.business_id = $1
+       WHERE so.business_id = $1 AND so.voided_at IS NULL
          AND TO_TIMESTAMP(so.sale_at/1000) >= NOW() - INTERVAL '7 days'
        GROUP BY p.id ORDER BY units DESC LIMIT 5`,
             [businessId]
@@ -308,7 +309,7 @@ async function getProductInventoryStats(businessId) {
      LEFT JOIN sales_prev_30d ON sales_prev_30d.product_id = p.id
      LEFT JOIN last_sale ON last_sale.product_id = p.id
      LEFT JOIN batch_summary ON batch_summary.product_id = p.id
-     WHERE p.business_id = $1`,
+     WHERE p.business_id = $1 AND p.archived_at IS NULL`,
         [
             businessId,
             Date.now() - 7 * DAY_MS,

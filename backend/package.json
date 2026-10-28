@@ -11,6 +11,7 @@
         "seed:showcase": "node src/scripts/seed_showcase.js",
         "seed:finale": "node src/scripts/seed_finale.js",
         "seed:off": "node scripts/seedOpenFoodFacts.js",
+        "seed:kirana": "node src/scripts/seed_kirana_demo.js",
         "test": "jest --runInBand"
     },
     "dependencies": {

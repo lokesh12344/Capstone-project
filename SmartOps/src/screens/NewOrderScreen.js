@@ -3,7 +3,7 @@ import {
     View, Text, ScrollView, TouchableOpacity,
     TextInput, StyleSheet, Alert, Modal, KeyboardAvoidingView, Platform, Keyboard,
 } from 'react-native';
-import { getProductByBarcode, recordSale, searchCustomers, createCustomer, updateCustomerDetails, getCustomerBalance, pickSaleBatch, getProductsByIds, getCustomersByIds } from '../database/actions';
+import { getProductByBarcode, recordSale, searchCustomers, createCustomer, updateCustomerDetails, getCustomerBalance, pickSaleBatch, getProductsByIds, getCustomersByIds, findPossibleDuplicates } from '../database/actions';
 import { useAppBadges } from '../hooks/useAppBadges';
 import { shareBillPdf, sendBillOnWhatsApp } from '../services/share';
 import BarcodeScanner from '../../components/BarcodeScanner';
@@ -94,9 +94,26 @@ export default function NewOrderScreen({ navigation, route }) {
 
     // The search above already gave the shopkeeper a chance to pick an existing
     // match — reaching here means this is genuinely a new person.
-    async function addNewCustomer() {
+    // Still double-check exact name matches: the dropdown is easy to skim past,
+    // and two "Ramesh" records split one person's khata in half.
+    async function addNewCustomer({ skipDuplicateCheck = false } = {}) {
         const name = customerQuery.trim();
         if (!name) return;
+        if (!skipDuplicateCheck) {
+            const dupes = await findPossibleDuplicates({ name });
+            if (dupes.length > 0) {
+                const d = dupes[0];
+                return Alert.alert(
+                    `${d.name} already exists`,
+                    [d.phone, d.address].filter(Boolean).join(' · ') || 'Saved earlier with no phone or address.',
+                    [
+                        { text: 'Use existing', onPress: () => selectCustomer(d) },
+                        { text: 'Add new anyway', onPress: () => addNewCustomer({ skipDuplicateCheck: true }) },
+                        { text: 'Cancel', style: 'cancel' },
+                    ]
+                );
+            }
+        }
         const created = await createCustomer({ name });
         selectCustomer(created);
     }
@@ -238,17 +255,15 @@ export default function NewOrderScreen({ navigation, route }) {
             refreshBadges();
 
             const finish = () => { setCart([]); clearCustomer(); navigation.goBack(); };
-            const hasPhone = !!(selectedCustomer?.phone || (paymentMode === 'credit' && phoneForCredit));
             Alert.alert(
                 'Order complete',
                 `₹${cartTotal.toFixed(2)} · ${paymentMode.toUpperCase()}`,
                 [
-                    hasPhone
-                        ? { text: 'WhatsApp bill', onPress: async () => { await sendBillOnWhatsApp(order.id); finish(); } }
-                        : null,
+                    // sendBillOnWhatsApp asks for a number itself when there isn't one.
+                    { text: 'WhatsApp bill', onPress: async () => { await sendBillOnWhatsApp(order.id); finish(); } },
                     { text: 'Share PDF bill', onPress: async () => { await shareBillPdf(order.id); finish(); } },
                     { text: 'Done', onPress: finish },
-                ].filter(Boolean)
+                ]
             );
         } catch (e) {
             Alert.alert('Error', 'Could not save order. Please try again.');
@@ -367,10 +382,12 @@ export default function NewOrderScreen({ navigation, route }) {
                                         {customerMatches.map(c => (
                                             <TouchableOpacity key={c.id} style={s.customerRow} onPress={() => selectCustomer(c)}>
                                                 <Text style={s.customerRowName}>{c.name}</Text>
-                                                {!!c.address && <Text style={s.customerRowSub}>{c.address}</Text>}
+                                                {!!(c.phone || c.address) && (
+                                                    <Text style={s.customerRowSub}>{[c.phone, c.address].filter(Boolean).join(' · ')}</Text>
+                                                )}
                                             </TouchableOpacity>
                                         ))}
-                                        <TouchableOpacity style={s.customerRow} onPress={addNewCustomer}>
+                                        <TouchableOpacity style={s.customerRow} onPress={() => addNewCustomer()}>
                                             <Text style={s.customerAddNew}>+ Add &quot;{customerQuery.trim()}&quot; as new customer</Text>
                                         </TouchableOpacity>
                                     </View>

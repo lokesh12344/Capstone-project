@@ -1,39 +1,53 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ScrollView } from 'react-native';
-import NetInfo from '@react-native-community/netinfo';
-import { syncWithServer } from '../sync/syncEngine';
+import { syncWithServer, refreshPendingStatus } from '../sync/syncEngine';
+import { useSyncStatus, formatSyncedAgo } from '../hooks/useSyncStatus';
 import { AppIcon } from '../theme/icons';
 import { colors, spacing, radius, font } from '../theme';
 import { useSession } from '../services/session';
 
 export default function ProfileScreen({ navigation, name, onLogout }) {
-    const [online, setOnline] = useState(true);
-    const [syncing, setSyncing] = useState(false);
+    const [loggingOut, setLoggingOut] = useState(false);
+    const { online, syncing, lastSyncedAt, lastError, hasPending } = useSyncStatus();
     const { role, staff } = useSession();
     const owner = role !== 'staff';
 
-    useEffect(() => {
-        const unsubscribe = NetInfo.addEventListener(state => {
-            setOnline(state.isConnected !== false && state.isInternetReachable !== false);
-        });
-        return unsubscribe;
-    }, []);
-
     async function handleSyncNow() {
-        setSyncing(true);
-        try {
-            await syncWithServer();
-        } finally {
-            setSyncing(false);
+        if (!online) {
+            return Alert.alert('You are offline', 'Your changes are saved on this phone and will sync when the internet is back.');
         }
+        const res = await syncWithServer();
+        if (res.ok) Alert.alert('Synced', 'Everything on this phone is backed up.');
+        else if (!res.busy) Alert.alert('Sync failed', `${res.error || 'Could not reach the server.'}\n\nYour changes are still saved on this phone. Try again in a bit.`);
     }
 
-    function confirmLogout() {
+    // Try one last push first; only warn when something is genuinely stuck on
+    // the phone (offline, or the server rejected it).
+    async function confirmLogout() {
+        setLoggingOut(true);
+        await syncWithServer();
+        const pending = await refreshPendingStatus();
+        setLoggingOut(false);
+        if (pending) {
+            return Alert.alert(
+                'Changes not backed up',
+                'Some sales or edits on this phone have not reached the server yet. If you log out now and someone else logs in here, they may be lost.\n\nConnect to the internet and tap Sync now first.',
+                [
+                    { text: 'Stay logged in', style: 'cancel' },
+                    { text: 'Log out anyway', style: 'destructive', onPress: onLogout },
+                ]
+            );
+        }
         Alert.alert('Log out', 'Are you sure you want to log out?', [
             { text: 'Cancel', style: 'cancel' },
             { text: 'Log out', style: 'destructive', onPress: onLogout },
         ]);
     }
+
+    const syncSubtitle = syncing ? 'Syncing…'
+        : hasPending ? (online ? 'Changes waiting to upload' : 'Offline · changes saved on phone')
+            : lastError ? 'Last sync failed'
+                : `Last synced ${formatSyncedAgo(lastSyncedAt)}`;
 
     return (
         <ScrollView style={s.root} contentContainerStyle={{ padding: spacing.lg, paddingBottom: 60 }}>
@@ -64,6 +78,11 @@ export default function ProfileScreen({ navigation, name, onLogout }) {
                     <AppIcon name="chevron" />
                 </TouchableOpacity>
             )}
+            <TouchableOpacity style={s.row} onPress={() => navigation.navigate('Customers')} activeOpacity={0.7}>
+                <AppIcon name="customers" size="chip" />
+                <Text style={s.rowLabel}>Customers & phone numbers</Text>
+                <AppIcon name="chevron" />
+            </TouchableOpacity>
             <TouchableOpacity style={s.row} onPress={() => navigation.navigate('Suppliers')} activeOpacity={0.7}>
                 <AppIcon name="suppliers" size="chip" />
                 <Text style={s.rowLabel}>Suppliers & purchase orders</Text>
@@ -79,13 +98,17 @@ export default function ProfileScreen({ navigation, name, onLogout }) {
 
             <TouchableOpacity style={s.row} onPress={handleSyncNow} disabled={syncing} activeOpacity={0.7}>
                 <AppIcon name="sync" size="chip" />
-                <Text style={s.rowLabel}>{syncing ? 'Syncing…' : 'Sync now'}</Text>
+                <View style={{ flex: 1 }}>
+                    <Text style={[s.rowLabel, { flex: 0 }]}>Sync now</Text>
+                    <Text style={[s.rowSub, (hasPending || lastError) && { color: colors.amber }]}>{syncSubtitle}</Text>
+                </View>
                 {syncing && <ActivityIndicator size="small" color={colors.teal} />}
             </TouchableOpacity>
 
-            <TouchableOpacity style={s.row} onPress={confirmLogout} activeOpacity={0.7}>
+            <TouchableOpacity style={s.row} onPress={confirmLogout} disabled={loggingOut} activeOpacity={0.7}>
                 <AppIcon name="logout" size="chip" color={colors.red} />
-                <Text style={[s.rowLabel, { color: colors.red }]}>Log out</Text>
+                <Text style={[s.rowLabel, { color: colors.red }]}>{loggingOut ? 'Saving your data…' : 'Log out'}</Text>
+                {loggingOut && <ActivityIndicator size="small" color={colors.red} />}
             </TouchableOpacity>
         </ScrollView>
     );
@@ -118,6 +141,7 @@ const s = StyleSheet.create({
     statusRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing.sm },
     statusDot: { width: 7, height: 7, borderRadius: 4 },
     statusText: { color: colors.textMuted, fontSize: font.sm, fontWeight: '600' },
+    rowSub: { color: colors.textMuted, fontSize: font.xs, marginTop: 2 },
     staffTag: { color: colors.amber, fontSize: font.sm, fontWeight: '700', marginTop: spacing.sm },
 
     row: {

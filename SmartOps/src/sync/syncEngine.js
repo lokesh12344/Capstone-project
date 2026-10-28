@@ -1,4 +1,4 @@
-import { synchronize } from '@nozbe/watermelondb/sync';
+import { synchronize, hasUnsyncedChanges } from '@nozbe/watermelondb/sync';
 import NetInfo from '@react-native-community/netinfo';
 import database from '../database';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -9,7 +9,7 @@ export const API_BASE = 'https://smartops-app.duckdns.org/api';
 // Sent on every pull so the server only includes tables this build knows about
 // (older installed APKs omit it and keep getting the original 7 tables).
 // Keep in step with the version in src/database/schema.js.
-const SCHEMA_VERSION = 5;
+const SCHEMA_VERSION = 6;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Auth state — in-memory, set on login, cleared on logout
@@ -31,12 +31,42 @@ export async function setBusinessId(id) {
     else await AsyncStorage.setItem('businessId', id);
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Sync status — what the UI shows (Profile's "last synced", Home's pill)
+// ─────────────────────────────────────────────────────────────────────────────
+let _status = { syncing: false, lastSyncedAt: null, lastError: null, hasPending: false };
+const _statusListeners = new Set();
+
+function setStatus(patch) {
+    _status = { ..._status, ...patch };
+    _statusListeners.forEach(fn => fn(_status));
+}
+
+export function getSyncStatus() { return _status; }
+
+export function subscribeSyncStatus(fn) {
+    _statusListeners.add(fn);
+    return () => _statusListeners.delete(fn);
+}
+
+// Re-reads whether any local row is still waiting to be pushed.
+export async function refreshPendingStatus() {
+    try {
+        setStatus({ hasPending: await hasUnsyncedChanges({ database }) });
+    } catch {
+        // DB not ready yet — the next sync will set it
+    }
+    return _status.hasPending;
+}
+
 export function getAuthToken() { return _token; }
 export function getBusinessId() { return _businessId; }
 
 export async function restoreSession() {
     _token = await AsyncStorage.getItem('authToken');
     _businessId = await AsyncStorage.getItem('businessId');
+    const last = Number(await AsyncStorage.getItem('lastSyncedAt'));
+    if (last) setStatus({ lastSyncedAt: last });
 
     console.log('[session] restored:', {
         token: !!_token,
@@ -99,7 +129,8 @@ function normalizePullChanges(changes) {
         ...changes,
         products: normalizeTableChanges(changes.products, {
             numberFields: ['reorder_level', 'selling_price'],
-            timestampFields: ['updated_at'],
+            timestampFields: ['archived_at', 'updated_at'],
+            nullableFields: ['archived_at'],
         }),
         stock_batches: normalizeTableChanges(changes.stock_batches, {
             numberFields: ['quantity', 'cost_price'],
@@ -112,21 +143,24 @@ function normalizePullChanges(changes) {
         }),
         sale_orders: normalizeTableChanges(changes.sale_orders, {
             numberFields: ['total_amount'],
-            timestampFields: ['sale_at', 'updated_at'],
+            timestampFields: ['sale_at', 'voided_at', 'updated_at'],
+            nullableFields: ['voided_at'],
         }),
         sale_items: normalizeTableChanges(changes.sale_items, {
             numberFields: ['quantity', 'unit_price'],
             timestampFields: ['updated_at'],
         }),
         customers: normalizeTableChanges(changes.customers, {
-            timestampFields: ['last_purchase_at', 'updated_at'],
+            timestampFields: ['last_purchase_at', 'archived_at', 'updated_at'],
+            nullableFields: ['archived_at'],
         }),
         ledger_entries: normalizeTableChanges(changes.ledger_entries, {
             numberFields: ['amount'],
             timestampFields: ['entry_at', 'updated_at'],
         }),
         suppliers: normalizeTableChanges(changes.suppliers, {
-            timestampFields: ['updated_at'],
+            timestampFields: ['archived_at', 'updated_at'],
+            nullableFields: ['archived_at'],
         }),
         purchase_orders: normalizeTableChanges(changes.purchase_orders, {
             timestampFields: ['ordered_at', 'updated_at'],
@@ -139,16 +173,19 @@ function normalizePullChanges(changes) {
 // ─────────────────────────────────────────────────────────────────────────────
 let _syncing = false;
 
+// Resolves to { ok, error } so callers can tell the shopkeeper what happened;
+// background callers just ignore it.
 export async function syncWithServer() {
     if (!_token || !_businessId) {
         console.log('[sync] 🔄 Skipped (Missing token or businessId)');
-        return;
+        return { ok: false, error: 'Not signed in' };
     }
     if (_syncing) {
         console.log('[sync] ⏳ Skipped (Already in progress)');
-        return;
+        return { ok: false, error: 'A sync is already running', busy: true };
     }
     _syncing = true;
+    setStatus({ syncing: true });
     console.log('[sync] 🚀 Started sync...');
 
     try {
@@ -185,10 +222,18 @@ export async function syncWithServer() {
         });
 
         console.log('✅ [sync] Complete at', new Date().toISOString());
+        const at = Date.now();
+        setStatus({ lastSyncedAt: at, lastError: null });
+        AsyncStorage.setItem('lastSyncedAt', String(at)).catch(() => {});
+        return { ok: true };
     } catch (err) {
         console.warn('❌ [sync] Failed (will retry on next trigger):', err.message);
+        setStatus({ lastError: err.message });
+        return { ok: false, error: err.message };
     } finally {
         _syncing = false;
+        setStatus({ syncing: false });
+        refreshPendingStatus();
     }
 }
 
@@ -199,6 +244,7 @@ export async function syncWithServer() {
 let _syncTimer = null;
 
 export function syncAfterWrite(delayMs = 1500) {
+    setStatus({ hasPending: true });
     if (_syncTimer) clearTimeout(_syncTimer);
     _syncTimer = setTimeout(() => {
         _syncTimer = null;
@@ -250,6 +296,8 @@ export async function logoutAndSync() {
     await setAuthToken(null);
     await setBusinessId(null);
     await clearSession();
+    await AsyncStorage.removeItem('lastSyncedAt');
+    setStatus({ lastSyncedAt: null, lastError: null, hasPending: false });
 
     console.log('[sync] Logged out cleanly.');
 }

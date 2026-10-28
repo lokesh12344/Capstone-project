@@ -63,3 +63,5 @@ Thumbs.db
 *.log
 *.tmp
 *.swp
+# Vercel CLI project link (local only)
+.vercel/

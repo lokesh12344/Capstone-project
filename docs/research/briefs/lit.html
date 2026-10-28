@@ -1,0 +1,334 @@
+<!DOCTYPE html><html lang='en'><head><meta charset='utf-8'><title>Literature_Review_Explained</title><style>
+@page { size: A4; margin: 16mm 16mm 18mm 16mm; }
+:root { --ink:#16161a; --muted:#5a5954; --navy:#1F3A68; --line:#dfe3ea; --tint:#f3f6fb; }
+* { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+body { font-family: "Segoe UI", Calibri, Arial, sans-serif; color: var(--ink); font-size: 10.5pt;
+       line-height: 1.5; margin: 0; }
+h1 { font-size: 19pt; color: var(--navy); margin: 0 0 10px; break-after: avoid; }
+h1 + p { color: var(--muted); }
+h2 { font-size: 14pt; color: var(--navy); margin: 18px 0 4px; break-after: avoid; }
+h3 { font-size: 11.5pt; margin: 14px 0 4px; break-after: avoid; }
+h2 + p em, h3 + p em { color: var(--muted); }
+p { margin: 5px 0; }
+ul, ol { margin: 5px 0 8px 20px; padding: 0; }
+li { margin: 3px 0; }
+strong { color: var(--ink); }
+table { border-collapse: collapse; width: 100%; font-size: 9.6pt; margin: 8px 0 12px; break-inside: avoid; }
+th, td { border: 1px solid var(--line); padding: 5px 7px; text-align: left; vertical-align: top; }
+th { background: var(--tint); }
+hr { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
+code { font-family: Consolas, "Courier New", monospace; font-size: 9.5pt; background: var(--tint);
+       padding: 0 3px; border-radius: 3px; }
+h3, h2 { break-after: avoid; }
+h3 + ul, h2 + p, h2 + table { break-before: avoid; }
+blockquote { margin: 6px 0; padding: 6px 12px; background: var(--tint); border-radius: 6px; }
+</style></head><body><h1>Literature review, explained paper by paper</h1>
+<p>Companion to <code>final/Voice_Khata_Proposal.pdf</code> (Section 2.1). Reference numbers [n] are the report's numbers. For each paper: what they did, why, how, what they found, what it does not cover, and how we use it. The last line of each entry is what you can say in the viva if asked about that paper.</p>
+<hr />
+<h2 class="keep">How the review is organised</h2>
+<p>The 16 papers are in time order, in four periods. Each period solved something the one before it could not, and each left something open.</p>
+<table>
+<thead>
+<tr>
+<th>Period</th>
+<th>What it settled</th>
+<th>What it left open</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2003–2010</td>
+<td>Voice suits low-literacy users; word error rate is an imperfect measure</td>
+<td>No automatic recognition, and no money-based measure</td>
+</tr>
+<tr>
+<td>2019–2021</td>
+<td>Mixed Indian speech is hard; judge a command by its extracted details</td>
+<td>English datasets; error measures not tied to money</td>
+</tr>
+<tr>
+<td>2022–2024</td>
+<td>Big multilingual models and large Indian speech datasets exist</td>
+<td>Tested on general speech, on servers, with large models</td>
+</tr>
+<tr>
+<td>2025–2026</td>
+<td>Whisper can be adapted to Indian and mixed speech, and compressed to 8 bits</td>
+<td>English test sets, server hardware, still scored by word errors</td>
+</tr>
+</tbody>
+</table>
+<p>Our study sits at the end of this line: offline recognition on a cheap phone, for mixed Hindi–Marathi–English khata commands, scored in rupees.</p>
+<hr />
+<h1>Period 1: Word errors and voice for low-literacy users (2003–2010)</h1>
+<h2 class="keep">[11] Wang, Acero and Chelba (2003): Is word error rate a good indicator for spoken language understanding accuracy?</h2>
+<p><em>IEEE Workshop on Automatic Speech Recognition and Understanding (ASRU), pp. 577–582.</em></p>
+<ul>
+<li><strong>What they did.</strong> They questioned a belief that everyone held at the time: that if you lower the word error rate of a recogniser, the system will also understand the user better.</li>
+<li><strong>Why.</strong> Speech systems are built in two stages: speech to text, then text to meaning. Teams were optimising the first stage and assuming the second would follow.</li>
+<li><strong>How.</strong> They worked on a spoken language understanding system and changed how the recogniser's language model was trained, using an example-based learning method that optimised understanding accuracy rather than word accuracy.</li>
+<li><strong>What they found.</strong> Lower word error rate does not always mean better understanding. What mattered more was training the recogniser to match the understanding task.</li>
+<li><strong>What it does not cover.</strong> It is in English, and it says nothing about numbers, amounts or money.</li>
+<li><strong>How we use it.</strong> This is the oldest support for our main idea: counting wrong words is not the same as measuring whether the system did the right thing. It sets up the Rupee Error Rate.</li>
+<li><strong>Say this:</strong> "Back in 2003 Wang and colleagues showed that a better word error rate does not always mean the system understood you better, so we should measure what the task actually cares about."</li>
+</ul>
+<h2 class="keep">[12] Morris, Maier and Green (2004): From WER and RIL to MER and WIL</h2>
+<p><em>Interspeech, pp. 2765–2768.</em></p>
+<ul>
+<li><strong>What they did.</strong> They examined word error rate as a measure and proposed two better-behaved alternatives: match error rate (MER) and word information lost (WIL).</li>
+<li><strong>Why.</strong> Word error rate has awkward properties. For example, it is not capped at 100%, because insertions can push it above the number of words spoken, which makes it hard to read as a proportion.</li>
+<li><strong>How.</strong> They analysed how the measures behave on recognition output and compared them with earlier information-based measures.</li>
+<li><strong>What they found.</strong> MER and WIL keep the useful part of word error rate while behaving more sensibly as proportions.</li>
+<li><strong>What it does not cover.</strong> All three measures still treat every word as equally important. A wrong "ko" and a wrong "250" count the same.</li>
+<li><strong>How we use it.</strong> It shows that improving the <em>measure</em> is a legitimate research contribution, which is what we do, except that we weight by money instead of by words.</li>
+<li><strong>Say this:</strong> "People have already improved on word error rate, but only at the word level; nobody has weighted errors by what they cost."</li>
+</ul>
+<h2 class="keep">[3] Medhi, Sagar and Toyama (2007): Text-free user interfaces for illiterate and semiliterate users</h2>
+<p><em>Information Technologies and International Development, vol. 4, no. 1, pp. 37–50.</em></p>
+<ul>
+<li><strong>What they did.</strong> They designed and tested interfaces that use no text at all, for users who cannot read.</li>
+<li><strong>Why.</strong> Most software assumes reading. In India that shuts out a large group of users, including many small shopkeepers and their staff.</li>
+<li><strong>How.</strong> Ethnographic design work with domestic workers in Bangalore slums, followed by two applications: a job-search tool and a map, built with voice and pictures instead of text.</li>
+<li><strong>What they found.</strong> The text-free designs were strongly preferred over text ones, and users could complete tasks without help from anyone.</li>
+<li><strong>What it does not cover.</strong> The voice was recorded audio, not speech recognition. Nothing had to be understood by a machine.</li>
+<li><strong>How we use it.</strong> It supports the case that voice is the right input for our users, and it is the reason we test with shopkeepers rather than only students.</li>
+<li><strong>Say this:</strong> "The HCI work in India is clear that voice beats text for low-literacy users, but those systems only played audio; they never had to understand it."</li>
+</ul>
+<h2 class="keep">[4] Patel, Chittamuru, Jain, Dave and Parikh (2010): Avaaj Otalo: a field study of an interactive voice forum for small farmers in rural India</h2>
+<p><em>ACM CHI, pp. 733–742.</em></p>
+<ul>
+<li><strong>What they did.</strong> They ran a voice-based question-and-answer forum on ordinary phone lines for small farmers in Gujarat, and studied how it was used.</li>
+<li><strong>Why.</strong> Farmers needed agricultural advice, but text services and the internet were out of reach for most of them.</li>
+<li><strong>How.</strong> A seven-month deployment, with usage logs and interviews with 51 farmers.</li>
+<li><strong>What they found.</strong> The forum was the most popular feature, social norms formed around it, and voice was preferred to text.</li>
+<li><strong>What it does not cover.</strong> It used recorded voice messages and keypad menus, so again nothing had to be recognised automatically. It is also a discussion service, not data entry.</li>
+<li><strong>How we use it.</strong> It is our evidence that voice services get real use in rural and small-business India over long periods, not just in lab tests.</li>
+<li><strong>Say this:</strong> "Voice services have worked in the field in India for months at a time, so the interest is proven; what is new is asking software to understand the speech correctly."</li>
+</ul>
+<hr />
+<h1>Period 2: Mixed languages and judging by the details (2019–2021)</h1>
+<h2 class="keep">[13] Sitaram, Chandu, Rallabandi and Black (2019): A survey of code-switched speech and language processing</h2>
+<p><em>arXiv:1904.00784.</em></p>
+<ul>
+<li><strong>What they did.</strong> They surveyed research on code-switching, where a speaker changes language inside one sentence, across both speech and text.</li>
+<li><strong>Why.</strong> Code-switching is normal in India and other multilingual places, but most models are trained on one language at a time.</li>
+<li><strong>How.</strong> A review of methods, available datasets and the tasks each dataset supports.</li>
+<li><strong>What they found.</strong> Code-switching makes both recognition and understanding harder, and there is very little suitable data.</li>
+<li><strong>What it does not cover.</strong> It is a survey, so no new experiments, and it does not cover Marathi mixing or shop commands.</li>
+<li><strong>How we use it.</strong> It explains why our mixed-language clips are the hard case, and why we label the language of every clip.</li>
+<li><strong>Say this:</strong> "Mixing languages inside one sentence is known to hurt recognition, and there is very little data for it, which is why our clips are labelled by language."</li>
+</ul>
+<h2 class="keep">[14] Bastianelli, Vanzo, Swietojanski and Rieser (2020): SLURP: a spoken language understanding resource package</h2>
+<p><em>EMNLP, pp. 7252–7262.</em></p>
+<ul>
+<li><strong>What they did.</strong> They released SLURP, a large English dataset of spoken commands to a home assistant across 18 domains, with baselines and a new way to score entity extraction.</li>
+<li><strong>Why.</strong> Spoken language understanding research had small datasets, and evaluation focused on words rather than on the details a system must extract.</li>
+<li><strong>How.</strong> They recorded many spoken versions of commands, ran speech recognition plus understanding models, and scored the extracted entities directly.</li>
+<li><strong>What they found.</strong> Mistakes in the transcript carry through into mistakes in the extracted details, so word-level accuracy hides what actually breaks.</li>
+<li><strong>What it does not cover.</strong> English only, and the entities are things like dates and device names, never money.</li>
+<li><strong>How we use it.</strong> It is the reason our main measure is "was the whole entry right", meaning name, amount and type, rather than word error rate.</li>
+<li><strong>Say this:</strong> "SLURP showed that you should score the details a system extracts, not just the words; we take that one step further and score the money."</li>
+</ul>
+<h2 class="keep">[9] Diwan et al. (2021): MUCS 2021: multilingual and code-switching ASR challenges for low-resource Indian languages</h2>
+<p><em>Interspeech, pp. 2446–2450.</em></p>
+<ul>
+<li><strong>What they did.</strong> They organised a shared challenge with two tasks: one multilingual recogniser for six Indian languages including Marathi and Hindi, and code-switched recognition for Hindi–English and Bengali–English.</li>
+<li><strong>Why.</strong> Indian languages had little labelled data, and code-switched speech had almost none, so there was no common ground to compare methods.</li>
+<li><strong>How.</strong> They released about 600 hours of speech across seven languages with blind test sets, and compared the systems teams submitted.</li>
+<li><strong>What they found.</strong> Both tasks remain difficult in low-resource conditions, and code-switched speech was the harder of the two.</li>
+<li><strong>What it does not cover.</strong> Everything is scored with word-level errors, and the speech is not shop or transaction speech.</li>
+<li><strong>How we use it.</strong> It is our evidence that Hindi–English mixing is a real research problem, not something we invented, and it names Marathi as a low-resource language.</li>
+<li><strong>Say this:</strong> "A whole shared challenge was needed just to benchmark Indian and code-switched speech, and it showed that mixed speech is the hardest case."</li>
+</ul>
+<h2 class="keep">[15] Gordeeva, Ershov, Gulyaev and Kuralenok (2021): Meaning Error Rate: ASR domain-specific metric framework</h2>
+<p><em>ACM SIGKDD Conference on Knowledge Discovery and Data Mining (KDD), pp. 458–466.</em></p>
+<ul>
+<li><strong>What they did.</strong> They proposed a framework for measuring recognition quality by whether the meaning survives, tailored to each application.</li>
+<li><strong>Why.</strong> In industry, one team's improvement can make another team's application worse, because each application cares about different words.</li>
+<li><strong>How.</strong> They defined a metric framework where the application decides which differences matter, instead of counting all word edits equally.</li>
+<li><strong>What they found.</strong> A single general-purpose measure is not enough; a task-specific measure reflects real quality better.</li>
+<li><strong>What it does not cover.</strong> The framework is generic. Nothing in it converts an error into money, and it is not about Indian languages or offline use.</li>
+<li><strong>How we use it.</strong> This is the closest ancestor of the Rupee Error Rate. Our contribution is the money-specific version of this idea, with a clear rule for what an error costs.</li>
+<li><strong>Say this:</strong> "This paper argued that every application needs its own error measure; for a khata the natural unit is rupees, and that is exactly what we build."</li>
+</ul>
+<hr />
+<h1>Period 3: Large multilingual and Indian-language models (2022–2024)</h1>
+<h2 class="keep">[16] Javed et al. (2022): Towards building ASR systems for the next billion users</h2>
+<p><em>AAAI, vol. 36, no. 10, pp. 10813–10821.</em></p>
+<ul>
+<li><strong>What they did.</strong> They collected 17,000 hours of raw speech in 40 Indian languages and pretrained wav2vec-style models on it (IndicWav2Vec).</li>
+<li><strong>Why.</strong> Indian languages had far too little labelled data to train recognisers one language at a time.</li>
+<li><strong>How.</strong> Self-supervised pretraining on unlabelled audio from sources such as news and education, then fine-tuning per language. They also analysed what the models learn, for example that similar-sounding units are shared across languages.</li>
+<li><strong>What they found.</strong> Training on many Indian languages together is an effective way to build recognition for languages with little data. They released the models and data pipeline.</li>
+<li><strong>What it does not cover.</strong> The models still need fine-tuning per language and are not built for a cheap phone; evaluation is word error rate on general speech.</li>
+<li><strong>How we use it.</strong> It is the background for why Indian-language recognition is now possible at all, and it is the alternative model family to Whisper.</li>
+<li><strong>Say this:</strong> "Indian-language recognition became practical when groups pooled 40 languages into one pretrained model, but those models are still big and tested on general speech."</li>
+</ul>
+<h2 class="keep">[5] Radford et al. (2023): Robust speech recognition via large-scale weak supervision (Whisper)</h2>
+<p><em>ICML, PMLR vol. 202, pp. 28492–28518.</em></p>
+<ul>
+<li><strong>What they did.</strong> They trained Whisper on 680,000 hours of audio and transcripts collected from the internet, covering many languages and several tasks.</li>
+<li><strong>Why.</strong> Earlier systems needed careful per-dataset training and broke on audio that did not match their training data.</li>
+<li><strong>How.</strong> Weak supervision, meaning they used the imperfect transcripts that came with the audio rather than hand-cleaned data, and trained one model for transcription, translation and language identification.</li>
+<li><strong>What they found.</strong> The models work on many test sets without any task-specific training, and come close to human-level accuracy on some of them.</li>
+<li><strong>What it does not cover.</strong> The results are for general speech, mostly with large models, and Indian-language performance varies. It says nothing about running on a phone.</li>
+<li><strong>How we use it.</strong> Whisper is the model we run offline, in its "small" size, quantised to 8 bits. It is free and supports Hindi and Marathi, so a student team can use it without training anything.</li>
+<li><strong>Say this:</strong> "Whisper is our base model because it is free, multilingual and works without task-specific training, but the paper reports general speech on big machines."</li>
+</ul>
+<h2 class="keep">[6] Bhogale et al. (2023): Vistaar: diverse benchmarks and training sets for Indian language ASR</h2>
+<p><em>Interspeech, pp. 4384–4388.</em></p>
+<ul>
+<li><strong>What they did.</strong> They assembled Vistaar, 59 benchmarks across Indian languages and domains, and trained IndicWhisper by fine-tuning Whisper on Indian data.</li>
+<li><strong>Why.</strong> Indian-language results were being reported on whichever test set suited a paper, so numbers were not comparable, and nobody knew how models behaved across domains.</li>
+<li><strong>How.</strong> They combined public datasets into a benchmark suite, then fine-tuned Whisper on about 10,700 hours across 12 Indian languages, and evaluated several open and commercial systems.</li>
+<li><strong>What they found.</strong> IndicWhisper had the lowest word error rate on 39 of the 59 benchmarks, and error rates varied a lot between domains such as news and conversation.</li>
+<li><strong>What it does not cover.</strong> None of the 59 benchmarks is shop, billing or khata speech, and all the scoring is word-level.</li>
+<li><strong>How we use it.</strong> Two ways: it tells us domain matters, which is why we build our own small test set, and it names the Indic-tuned model we would try if plain Whisper is weak.</li>
+<li><strong>Say this:</strong> "Even the best Indian-language model changes a lot from domain to domain, and none of those domains is a shop, so we cannot assume the published numbers apply to us."</li>
+</ul>
+<h2 class="keep">[17] Gandhi, von Platen and Rush (2023): Distil-Whisper</h2>
+<p><em>arXiv:2311.00430.</em></p>
+<ul>
+<li><strong>What they did.</strong> They made a smaller, faster copy of Whisper by distillation.</li>
+<li><strong>Why.</strong> Whisper is accurate but heavy, which blocks it from real-time and on-device use.</li>
+<li><strong>How.</strong> They generated pseudo-labels with the large model on a large amount of audio, kept only the high-quality ones using a word-error-rate threshold, and trained a smaller student model on them.</li>
+<li><strong>What they found.</strong> The student is 5.8 times faster with 51% fewer parameters, and stays within 1% word error rate of the original on out-of-distribution English audio. It also hallucinates less on long audio.</li>
+<li><strong>What it does not cover.</strong> English only, and the evaluation is not on phone hardware.</li>
+<li><strong>How we use it.</strong> It is our evidence that a shrunk Whisper can keep most of its accuracy, which is the assumption behind using an 8-bit model on a cheap phone.</li>
+<li><strong>Say this:</strong> "Shrinking Whisper has been shown to keep accuracy within about one percent, but that was English on a computer, so we test it for ourselves."</li>
+</ul>
+<h2 class="keep">[7] Javed et al. (2024): IndicVoices</h2>
+<p><em>Findings of ACL 2024, pp. 10740–10782.</em></p>
+<ul>
+<li><strong>What they did.</strong> They built IndicVoices, 7,348 hours of natural speech from 16,237 speakers across 145 districts and 22 languages, and used it to build IndicASR.</li>
+<li><strong>Why.</strong> Earlier Indian datasets were mostly read speech from a narrow group of speakers, so models did not cope with ordinary people speaking naturally.</li>
+<li><strong>How.</strong> A large field collection effort with standard protocols, prompts and quality checks. Most of the audio is extempore or conversational rather than read.</li>
+<li><strong>What they found.</strong> It is the largest and most varied Indian speech collection so far, and it supports a recogniser covering all 22 scheduled languages.</li>
+<li><strong>What it does not cover.</strong> Conversation and answers to prompts, not short commands with a name and an amount. The models are far too large for a cheap phone.</li>
+<li><strong>How we use it.</strong> It shows that our kind of data, short khata commands, does not exist even in the biggest Indian collection, which is part of our gap.</li>
+<li><strong>Say this:</strong> "The largest Indian speech dataset has over seven thousand hours, and still none of it is someone telling a shop app to record 250 rupees of credit."</li>
+</ul>
+<hr />
+<h1>Period 4: Adapting Whisper to Indian speech and small devices (2025–2026)</h1>
+<h2 class="keep">[18] Tripathi, Gothi and Wasnik (2025): Enhancing Whisper's accuracy and speed for Indian languages</h2>
+<p><em>IEEE ICASSP 2025.</em></p>
+<ul>
+<li><strong>What they did.</strong> They improved Whisper for Indian languages in two ways at once: accuracy and speed.</li>
+<li><strong>Why.</strong> Whisper is weak on low-resource Indian languages, and it is also slow because it produces many tokens for Indian scripts.</li>
+<li><strong>How.</strong> Prompt-tuning that tells the model which language family it is hearing, plus a new tokenizer that produces fewer tokens per sentence.</li>
+<li><strong>What they found.</strong> Accuracy improved and inference time fell across Whisper sizes, giving a better balance of the two.</li>
+<li><strong>What it does not cover.</strong> Results are word error rate on general Indian-language speech; there is no test of short commands, no offline phone deployment and no money measure.</li>
+<li><strong>How we use it.</strong> It shows that small, cheap changes around the model, rather than retraining it, can help a lot. Our customer-name hint is the same kind of trick.</li>
+<li><strong>Say this:</strong> "Recent work gets more out of Whisper for Indian languages with prompts and a better tokenizer, which is the same spirit as our customer-name hint."</li>
+</ul>
+<h2 class="keep">[10] Biswas, Shevelev, Abdaoui, Tyagi and Boumadane (2025): Adapting Whisper for low-resource Hindi–English code-mix speech</h2>
+<p><em>Interspeech, pp. 4293–4297.</em></p>
+<ul>
+<li><strong>What they did.</strong> They adapted Whisper to Hindi–English mixed speech when very little mixed training data exists.</li>
+<li><strong>Why.</strong> Code-mixing is everywhere in India, but labelled code-mixed audio is scarce, so models trained on clean single-language data fail.</li>
+<li><strong>How.</strong> Three things: language prompts during fine-tuning, simulating code-mixed audio on the fly during training, and using a large language model (Llama) to write code-switched sentences that were then turned into audio.</li>
+<li><strong>What they found.</strong> These techniques gave promising gains on a Hindi–English code-switched dataset with limited data.</li>
+<li><strong>What it does not cover.</strong> Hindi and English only, so no Marathi. The work is about fine-tuning on servers, not running offline on a phone, and it reports word error rate.</li>
+<li><strong>How we use it.</strong> It is the closest paper to our language setting, and the clearest evidence that our mixed-language case is still an open problem in 2025.</li>
+<li><strong>Say this:</strong> "As recently as this year, people are still working out how to make Whisper handle Hindi–English mixing, and that work does not cover Marathi or offline phones."</li>
+</ul>
+<h2 class="keep">[19] Söhler, Irigoyen and Kirkedal (2026): Quantizing Whisper-small: how design choices affect ASR performance</h2>
+<p><em>SPEAKABLE Workshop at LREC 2026.</em></p>
+<ul>
+<li><strong>What they did.</strong> They compared ways of compressing Whisper-small after training, across four software libraries.</li>
+<li><strong>Why.</strong> Quantisation is the standard way to make a model small enough for limited hardware, but the choice of method and bit width changes the result, and teams were choosing blindly.</li>
+<li><strong>How.</strong> Post-training quantisation with PyTorch, Optimum-Quanto, HQQ and bitsandbytes, evaluated on the LibriSpeech test-clean and test-other English sets, run on server CPUs and GPUs.</li>
+<li><strong>What they found.</strong> Dynamic 8-bit quantisation gave the best trade-off: 57% smaller with a slightly better word error rate than the baseline. More aggressive compression reached about 71% smaller but hurt accuracy on noisy audio, and static quantisation did poorly for this architecture.</li>
+<li><strong>What it does not cover.</strong> English audio only, tested on powerful servers, and the authors themselves note that LibriSpeech does not represent spontaneous speech in the field.</li>
+<li><strong>How we use it.</strong> It justifies our exact choice: Whisper-small at 8 bits, not 4 bits. It also gives us the open question we answer: does that hold for Hindi and Marathi on a cheap phone, in a noisy shop?</li>
+<li><strong>Say this:</strong> "The newest work says 8-bit Whisper-small keeps its accuracy, but that was English on a server, so testing it on Indian speech on a 6,000-rupee phone is exactly our contribution."</li>
+</ul>
+<hr />
+<h1>Supporting sources (used elsewhere in the report)</h1>
+<table>
+<thead>
+<tr>
+<th>[n]</th>
+<th>Source</th>
+<th>Where we use it</th>
+<th>What it gives us</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>[1]</td>
+<td>Adhikary et al. (2021), <em>J. Acad. Marketing Sci.</em></td>
+<td>Background, significance</td>
+<td>Digital payment tools raised revenue by 9.6% on average across 403 Indian unorganised retailers</td>
+</tr>
+<tr>
+<td>[2]</td>
+<td>Choudhary and Aithal (2023), <em>IIM Kozhikode Soc. Manage. Rev.</em></td>
+<td>Background</td>
+<td>Low-cost technology matters for kirana competitiveness</td>
+</tr>
+<tr>
+<td>[8]</td>
+<td>GSMA (2023), State of Mobile Internet Connectivity</td>
+<td>Problem, scope</td>
+<td>Coverage exists but usage and quality gaps persist, so offline capability is needed</td>
+</tr>
+<tr>
+<td>[20]</td>
+<td>Brooke (1996), SUS</td>
+<td>Methodology, usability test</td>
+<td>A 10-question usability score from 0 to 100</td>
+</tr>
+<tr>
+<td>[21]</td>
+<td>Digital Personal Data Protection Act, 2023</td>
+<td>Ethics</td>
+<td>Consent, purpose limitation and deletion rules for the voice recordings</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h1>The four gaps, and which papers create them</h1>
+<table>
+<thead>
+<tr>
+<th>Gap</th>
+<th>Comes from</th>
+<th>What we do about it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>1. No test on khata-style commands.</strong> Indian benchmarks cover news, lectures and conversation</td>
+<td>[6], [7]</td>
+<td>Build a 360-clip test set of khata commands with known answers</td>
+</tr>
+<tr>
+<td><strong>2. No money-based error measure.</strong> Better measures exist, but all at word or meaning level</td>
+<td>[11], [12], [15]</td>
+<td>Define and report the Rupee Error Rate</td>
+</tr>
+<tr>
+<td><strong>3. Offline performance on cheap phones is unknown.</strong> Compression is tested on English, on servers</td>
+<td>[17], [19]</td>
+<td>Run 8-bit Whisper-small on a 2–3 GB Android phone and report accuracy, time and memory</td>
+</tr>
+<tr>
+<td><strong>4. Voice versus typing with real recognition.</strong> Earlier Indian voice studies used recorded audio</td>
+<td>[3], [4]</td>
+<td>A 10-person test where voice competes with typing, errors included</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h1>Questions an examiner may ask about the review</h1>
+<p><strong>"Why time order instead of by theme?"</strong>
+Because the story is a chain. Voice was known to suit these users, then mixed speech was shown to be hard, then the models arrived, then people shrank them. Each period removes one barrier, and what's left over is our project.</p>
+<p><strong>"Which single paper is closest to yours?"</strong>
+Two, for different reasons. Gordeeva et al. [15] is closest on the measure, because they argued each application needs its own error measure. Biswas et al. [10] is closest on the setting, because they work on Hindi–English mixing with Whisper.</p>
+<p><strong>"Are these papers recent enough?"</strong>
+Ten of the sixteen are from 2020 or later, and three are from 2025 and 2026. The older ones are there because they establish the two ideas we build on: voice suits low-literacy users, and word error rate is not the right measure.</p>
+<p><strong>"How did you verify them?"</strong>
+Every reference was checked against the publisher or the official archive page, such as the ACL Anthology, ISCA Archive, IEEE, ACM, PMLR or AAAI, and we recorded the volume, pages and DOI where the page shows them.</p>
+<p><strong>"What if a reviewer finds a paper you missed?"</strong>
+That is likely; the area moves fast. Our claim is narrow and stays safe: we found no study that scores speech errors in money, for mixed Hindi–Marathi–English khata commands, running offline on a low-cost phone.</p></body></html>

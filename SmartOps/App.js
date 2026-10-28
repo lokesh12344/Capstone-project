@@ -34,6 +34,7 @@ import StaffScreen from './src/screens/StaffScreen';
 import SuppliersScreen from './src/screens/SuppliersScreen';
 import PurchaseOrderScreen from './src/screens/PurchaseOrderScreen';
 import VoiceEntryScreen from './src/screens/VoiceEntryScreen';
+import InsightsScreen from './src/screens/InsightsScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -181,6 +182,7 @@ export default function App() {
                         <Stack.Screen name="Suppliers" component={SuppliersScreen} />
                         <Stack.Screen name="PurchaseOrder" component={PurchaseOrderScreen} />
                         <Stack.Screen name="VoiceEntry" component={VoiceEntryScreen} />
+                        <Stack.Screen name="Insights" component={InsightsScreen} />
                         <Stack.Screen name="Profile">
                             {props => <ProfileScreen {...props} onLogout={handleLogout} name={name} />}
                         </Stack.Screen>

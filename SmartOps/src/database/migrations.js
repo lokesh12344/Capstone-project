@@ -89,5 +89,19 @@ export default schemaMigrations({
                 addColumns({ table: 'sale_orders', columns: [{ name: 'voided_at', type: 'number', isOptional: true }] }),
             ],
         },
+        {
+            // v6 -> v7: clearance discounts. regular_price holds the normal
+            // price while selling_price is the discounted one; null = no sale.
+            toVersion: 7,
+            steps: [
+                addColumns({
+                    table: 'products',
+                    columns: [
+                        { name: 'regular_price', type: 'number', isOptional: true },
+                        { name: 'sale_until', type: 'number', isOptional: true },
+                    ],
+                }),
+            ],
+        },
     ],
 });

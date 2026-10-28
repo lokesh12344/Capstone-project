@@ -31,5 +31,16 @@ Audit of `SmartOps/` screens and navigation (2026-10-28). Ordered by impact.
 ## Follow-ups / known limits
 
 - [ ] **Merge duplicate customers.** This needs a server-side reassign of `sale_orders.customer_id` and `ledger_entries.customer_id`, which are both immutable on the server today.
-- [ ] **Reorder velocity still counts voided sales.** The `sale` stock transactions stay, and a `return` is added. Backend `analyticsController` sales_7d/30d should net out returns.
+- [x] **Reorder velocity still counts voided sales.** *(Fixed: sales minus returns.)* The `sale` stock transactions stay, and a `return` is added. Backend `analyticsController` sales_7d/30d should net out returns.
 - [ ] **Backend tests weren't run locally** (no `TEST_DATABASE_URL`). CI will run them on push.
+
+## Clearance discounts (added 2026-10-28)
+
+- [x] `regular_price` column (app schema v7, backend migration 018). A product is on sale while it's set.
+- [x] Apply/end discount from Inventory (10/20/30% off) and from Shop Insights (one tap on a suggested price). Owner only.
+- [x] SALE tags in Inventory and New Order, plus an "On sale" filter.
+- [x] Shop Insights screen with tabs: Discounts, Expiring, Not selling, Running out.
+- [x] Markdown suggestions skip products already on sale.
+- [x] Web dashboard: "On Sale Now" card and panel (price, % off, units sold in 7 days, end date).
+- [x] Optional end date for a sale ("For 7 days"); the app reverts the price on start and when Inventory opens.
+- [x] Demo seed (`seed_kirana_demo.js`) now includes 2 voided bills, 2 products on sale, 1 archived product and 1 archived customer.

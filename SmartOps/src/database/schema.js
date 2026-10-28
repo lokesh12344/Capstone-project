@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export default appSchema({
-    version: 6,
+    version: 7,
     tables: [
 
         tableSchema({
@@ -16,6 +16,8 @@ export default appSchema({
                 { name: 'schedule_h', type: 'boolean' },
                 { name: 'selling_price', type: 'number' },
                 { name: 'archived_at', type: 'number', isOptional: true },
+                { name: 'regular_price', type: 'number', isOptional: true },
+                { name: 'sale_until', type: 'number', isOptional: true },
                 { name: 'business_id', type: 'string', isIndexed: true },
                 { name: 'sync_status', type: 'string' },
                 { name: 'updated_at', type: 'number' },

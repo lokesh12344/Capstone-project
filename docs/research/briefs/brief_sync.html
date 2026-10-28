@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sync Methods Brief</title>
+<link rel="stylesheet" href="brief.css">
+</head>
+<body>
+
+<div class="header">
+  <div class="kicker">Proposal 1 · Quick brief</div>
+  <h1>Preventing Missing Records in Offline Khata Apps: A Study of Sync Methods in SmartOps</h1>
+  <div class="sub">Research Methodology · what we are proposing, in plain words</div>
+</div>
+
+<div class="oneline"><b>In one line:</b> our app can permanently "lose" a khata entry on the shop's second phone because of which time it uses while syncing. We will measure how often that happens and test two simple fixes.</div>
+
+<section class="sec">
+<h2><span class="n">1</span>The problem</h2>
+<p>SmartOps works offline. Every entry is saved on the phone first, and phones sync with the server later. When a phone syncs, it asks the server: <i>"give me everything newer than my last sync."</i></p>
+<p>But "newer" is judged by the time written <b>on the phone that created the entry</b>, not the time the server received it. So an entry made offline and uploaded later looks "old" and gets skipped by another phone.</p>
+
+<figure>
+  <img src="../figures/p1_bug_timeline.png" style="width:92%">
+  <figcaption>Phone A saves ₹500 repayment offline at 10:20 and uploads at 10:50. Phone B already synced at 10:30, so it only asks for records after 10:30 and never gets the 10:20 one.</figcaption>
+</figure>
+
+<div class="grid3">
+  <div class="card orange"><h3>What goes wrong</h3><p>Phone B keeps showing Ramesh owes ₹500 more than he really does.</p></div>
+  <div class="card grey"><h3>Where in our code</h3><p>Phone stamps <code>updated_at</code> (actions.js:340); server filters <code>updated_at &gt; last sync</code> (syncController.js:96).</p></div>
+  <div class="card yellow"><h3>Small extra issue</h3><p>Phone keeps 99.999, server rounds to 100.00, so there's a paise-level gap.</p></div>
+</div>
+</section>
+
+<section class="sec">
+<h2><span class="n">2</span>What we are proposing</h2>
+<p>We compare <b>three ways</b> of deciding what a phone should download:</p>
+<div class="grid3">
+  <div class="card orange"><span class="tag">Current</span><h3>Phone time</h3><p>Record keeps the time it was written on the phone. This is the one with the bug.</p></div>
+  <div class="card blue"><span class="tag">Fix 1</span><h3>Server timestamp</h3><p>Server writes its own time when the record arrives. R becomes 10:50, so B gets it.</p></div>
+  <div class="card green"><span class="tag">Fix 2</span><h3>Server sequence number</h3><p>Server gives each record the next number, like a bank token. B asks "after token 57", gets 58.</p></div>
+</div>
+</section>
+
+<section class="sec">
+<h2><span class="n">3</span>How we will test it</h2>
+<ol class="steps">
+  <li><b>Prove the bug</b> on two real phones (the exact Figure above).</li>
+  <li><b>Add a switch</b> <code>SYNC_MODE</code> in our backend to pick one of the 3 methods.</li>
+  <li><b>Write a Node.js script</b> that pretends to be 3 phones of one shop. It makes sales, credit and repayments and goes offline and online on a schedule.</li>
+  <li><b>Run it 180 times:</b> 3 methods × 3 offline durations (5 min, 30 min, 2 h) × 20 runs. Time is sped up, so 1 second = 1 shop minute.</li>
+  <li><b>After each run, compare</b> every phone with the server database and count what's missing.</li>
+</ol>
+
+<div class="grid4">
+  <div class="card blue"><div class="big">%</div><h3>Records missed</h3><p>on the server but not on a phone</p></div>
+  <div class="card blue"><div class="big">₹</div><h3>Balance gap</h3><p>how far phone balances are off</p></div>
+  <div class="card grey"><div class="big">ms</div><h3>Sync time</h3><p>does the fix slow it down?</p></div>
+  <div class="card grey"><div class="big">KB</div><h3>Data size</h3><p>does the fix use more data?</p></div>
+</div>
+</section>
+
+<section class="sec">
+<h2><span class="n">4</span>What we expect to show (hypotheses)</h2>
+<table>
+  <tr><th style="width:9%">#</th><th style="width:44%">In plain words</th><th style="width:22%">Test</th><th>We are wrong if…</th></tr>
+  <tr><td><b>H1</b></td><td>The three methods miss different amounts. Phone time misses records, server methods almost none.</td><td>Chi-square</td><td>all three miss about the same</td></tr>
+  <tr><td><b>H2</b></td><td>With phone time, longer offline means more missed records.</td><td>Kruskal–Wallis</td><td>2 h offline isn't worse than 5 min</td></tr>
+  <tr><td><b>H3</b></td><td>The fixes don't make sync noticeably slower (under 10%).</td><td>Kruskal–Wallis</td><td>the fixes are clearly slower</td></tr>
+</table>
+<div class="grid2">
+  <div class="card grey"><h3>Chi-square, in one breath</h3><p>Count missed vs delivered records for each method, and check if the difference is too big to be luck.</p></div>
+  <div class="card grey"><h3>Kruskal–Wallis, in one breath</h3><p>Rank all runs from low to high and check if one group is consistently higher. No bell curve needed.</p></div>
+</div>
+</section>
+
+<section class="sec">
+<h2><span class="n">5</span>What we expect to find <span class="note">(expectations, not results)</span></h2>
+<ul>
+  <li>Phone time will miss records, and more of them with longer offline periods.</li>
+  <li>Both server methods will miss almost none. A very rare miss can happen if a push and a pull hit the server in the same millisecond, and we'll count it honestly.</li>
+  <li>The fixes cost very little extra time. There is slightly more data, because each phone re-downloads its own records once. That also removes the rounding gap.</li>
+  <li><b>Final output:</b> a recommended method for SmartOps, the fixed backend code, and a reusable test script.</li>
+</ul>
+</section>
+
+<section class="sec">
+<h2><span class="n">6</span>Plan and cost</h2>
+<div class="grid2">
+  <div class="card blue"><h3>12 weeks</h3><p>Weeks 1–3: trace and prove the bug · 3–6: build fixes and simulator · 7–9: run 180 tests · 9–12: analysis and report.</p></div>
+  <div class="card green"><h3>About ₹2,000</h3><p>All free software; our own laptops and phones. The money is for printing, travel and a little mobile data. No people involved, all data is made up.</p></div>
+</div>
+</section>
+
+<section class="sec">
+<h2><span class="n">7</span>Say it in 30 seconds</h2>
+<div class="pitch"><div class="label">Pitch</div>
+<p>"Our khata app works offline and syncs later. It decides what other phones should download using the time on the phone that made the entry. So a repayment saved offline and uploaded later can be skipped forever by the shop's second phone, and the two phones then show different balances. We'll measure how often this happens with a script that acts as three phones against our real server, over 180 runs. Then we'll compare two fixes: server time and a server counter. We measure missed records, the rupee gap and the cost, and recommend one."</p></div>
+</section>
+
+<section class="sec long">
+<h2><span class="n">8</span>Tough questions, quick answers</h2>
+<div class="qa"><div class="q">"Isn't this just a bug fix?"</div><div class="a">The fix is small. The research is measuring how often it happens, how it grows with offline time, how much money it affects, and what the fixes cost, all with a controlled test and hypotheses.</div></div>
+<div class="qa"><div class="q">"Why not use Firebase?"</div><div class="a">Paid, closed, and data sits on Google's servers. We use an open stack we control, and our question applies to anyone using pull/push sync.</div></div>
+<div class="qa"><div class="q">"Is 20 runs enough?"</div><div class="a">H1 counts records, about 10,000 per method, which is plenty. Kruskal–Wallis needs 5+ per group and we have 20. More runs are cheap if needed.</div></div>
+<div class="qa"><div class="q">"Why not test in real shops?"</div><div class="a">We can't control when phones go offline, it would take months, and it risks real money records. We still check the key case on two real phones.</div></div>
+<div class="qa"><div class="q">"Isn't speeding up time cheating?"</div><div class="a">No. The bug only depends on the <i>order</i>: A writes, B syncs, A uploads. Speeding up keeps the order.</div></div>
+</section>
+
+<div class="foot">Full proposal: Research_Proposal_1_Sync_Methods.pdf · Detailed viva notes: explainer_sync.md</div>
+</body>
+</html>

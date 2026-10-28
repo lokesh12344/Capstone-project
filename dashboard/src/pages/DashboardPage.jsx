@@ -5,6 +5,7 @@ import {
     formatCurrency,
     formatDate,
     formatDateTime,
+    formatShortDate,
     normalizeNumber,
 } from '../lib/format';
 import Shell from '../components/Shell';
@@ -233,6 +234,7 @@ export default function DashboardPage({ auth }) {
     const deadStockItems = inventory?.dead_stock?.items || [];
     const opportunityItems = inventory?.opportunities?.items || [];
     const markdownItems = inventory?.markdowns?.items || [];
+    const onSaleItems = inventory?.on_sale?.items || [];
 
     return (
         <Shell
@@ -451,6 +453,12 @@ export default function DashboardPage({ auth }) {
                                         hint: 'Slow stock to discount while staying profitable',
                                         tone: 'amber',
                                         section: 'markdowns',
+                                    }, {
+                                        label: 'On Sale Now',
+                                        value: formatCompactNumber(inventory?.on_sale?.summary?.on_sale_count),
+                                        hint: 'Discounts applied from the shop app',
+                                        tone: 'blue',
+                                        section: 'on-sale',
                                     }].map(card => (
                                         <KpiCard
                                             key={card.section}
@@ -651,6 +659,44 @@ export default function DashboardPage({ auth }) {
                                                                     <td><span className="severity-pill severity-pill--high">{item.discount_pct}% off</span></td>
                                                                     <td><span className="severity-pill severity-pill--safe">{item.margin_pct_after}%</span></td>
                                                                     <td>{formatCurrency(item.blocked_cost_value)}</td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            )}
+                                        </Panel>
+                                    )}
+
+                                    {(activeSection === null || activeSection === 'on-sale') && (
+                                        <Panel title="On Sale Now" subtitle="Discounts the shop has applied, and whether they're moving stock">
+                                            {onSaleItems.length === 0 ? (
+                                                <EmptyBlock title="Nothing on sale" subtitle="Apply a suggested markdown from Shop Insights in the app to see it here." />
+                                            ) : (
+                                                <div className="table-wrap">
+                                                    <table>
+                                                        <thead>
+                                                            <tr>
+                                                                <th>Product</th>
+                                                                <th>Price</th>
+                                                                <th>Discount</th>
+                                                                <th>Sold (7d)</th>
+                                                                <th>Ends</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {onSaleItems.slice(0, 8).map(item => (
+                                                                <tr key={item.product_id}>
+                                                                    <td>
+                                                                        <div className="customer-cell">
+                                                                            <strong>{item.name}</strong>
+                                                                            <span>{item.category} · {item.current_stock} {item.unit} left</span>
+                                                                        </div>
+                                                                    </td>
+                                                                    <td><s>{formatCurrency(item.regular_price)}</s> → <strong>{formatCurrency(item.sale_price)}</strong></td>
+                                                                    <td><span className="severity-pill severity-pill--medium">{item.discount_pct}% off</span></td>
+                                                                    <td>{formatCompactNumber(item.units_sold_7d)}</td>
+                                                                    <td>{item.sale_until ? formatShortDate(item.sale_until) : 'Until ended'}</td>
                                                                 </tr>
                                                             ))}
                                                         </tbody>

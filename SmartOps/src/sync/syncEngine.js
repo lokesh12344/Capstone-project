@@ -9,7 +9,7 @@ export const API_BASE = 'https://smartops-app.duckdns.org/api';
 // Sent on every pull so the server only includes tables this build knows about
 // (older installed APKs omit it and keep getting the original 7 tables).
 // Keep in step with the version in src/database/schema.js.
-const SCHEMA_VERSION = 6;
+const SCHEMA_VERSION = 7;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Auth state — in-memory, set on login, cleared on logout

@@ -323,7 +323,10 @@ export default function NewOrderScreen({ navigation, route }) {
                             <Card key={item.product.id} style={s.cartItem}>
                                 <View style={s.cartItemTop}>
                                     <View style={s.cartItemInfo}>
-                                        <Text style={s.cartItemName}>{item.product.name}</Text>
+                                        <Text style={s.cartItemName}>
+                                            {item.product.name}
+                                            {item.product.onSale && <Text style={s.saleTag}>  SALE</Text>}
+                                        </Text>
                                         <TouchableOpacity onPress={() => openPriceEdit(i)} activeOpacity={0.7}>
                                             <Text style={s.cartItemSub}>
                                                 {item.product.category} · ₹{item.unitPrice} each · <Text style={s.editPriceLink}>edit price</Text>
@@ -597,6 +600,7 @@ const s = StyleSheet.create({
     cartItem: { marginBottom: spacing.sm },
     cartItemTop: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.md },
     cartItemInfo: { flex: 1 },
+    saleTag: { color: colors.blue, fontSize: font.xs, fontWeight: '800' },
     cartItemName: { color: colors.textPrimary, fontSize: font.md, fontWeight: '600', marginBottom: 2 },
     cartItemSub: { color: colors.textMuted, fontSize: font.sm },
     editPriceLink: { color: colors.teal, fontWeight: '600' },

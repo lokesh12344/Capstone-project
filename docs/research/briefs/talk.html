@@ -1,0 +1,296 @@
+<!DOCTYPE html><html lang='en'><head><meta charset='utf-8'><title>Presentation_Talking_Points</title><style>
+@page { size: A4; margin: 16mm 16mm 18mm 16mm; }
+:root { --ink:#16161a; --muted:#5a5954; --navy:#1F3A68; --line:#dfe3ea; --tint:#f3f6fb; }
+* { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+body { font-family: "Segoe UI", Calibri, Arial, sans-serif; color: var(--ink); font-size: 10.5pt;
+       line-height: 1.5; margin: 0; }
+h1 { font-size: 19pt; color: var(--navy); margin: 0 0 10px; break-after: avoid; }
+h1 + p { color: var(--muted); }
+h2 { font-size: 14pt; color: var(--navy); margin: 18px 0 4px; break-after: avoid; }
+h3 { font-size: 11.5pt; margin: 14px 0 4px; break-after: avoid; }
+h2 + p em, h3 + p em { color: var(--muted); }
+p { margin: 5px 0; }
+ul, ol { margin: 5px 0 8px 20px; padding: 0; }
+li { margin: 3px 0; }
+strong { color: var(--ink); }
+table { border-collapse: collapse; width: 100%; font-size: 9.6pt; margin: 8px 0 12px; break-inside: avoid; }
+th, td { border: 1px solid var(--line); padding: 5px 7px; text-align: left; vertical-align: top; }
+th { background: var(--tint); }
+hr { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
+code { font-family: Consolas, "Courier New", monospace; font-size: 9.5pt; background: var(--tint);
+       padding: 0 3px; border-radius: 3px; }
+h3, h2 { break-after: avoid; }
+h3 + ul, h2 + p, h2 + table { break-before: avoid; }
+blockquote { margin: 6px 0; padding: 6px 12px; background: var(--tint); border-radius: 6px; }
+</style></head><body><h1>Talking points, slide by slide</h1>
+<p>Companion to <code>final/Voice_Khata_Presentation_v2.pptx</code> (16 slides). The same text is in the speaker notes of each slide; this document adds the timing, the numbers to remember, the line that moves you to the next slide, and the question each slide invites.</p>
+<p><strong>Total target: about 7 minutes</strong>, plus 2 to 3 minutes of questions. If you have 10 to 12 minutes, add the "if you have more time" lines.</p>
+<table>
+<thead>
+<tr>
+<th>Slide</th>
+<th>Seconds</th>
+<th>Slide</th>
+<th>Seconds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1 Title</td>
+<td>20</td>
+<td>9 Framework</td>
+<td>30</td>
+</tr>
+<tr>
+<td>2 Agenda</td>
+<td>15</td>
+<td>10 Experiment design</td>
+<td>45</td>
+</tr>
+<tr>
+<td>3 Background</td>
+<td>40</td>
+<td>11 Rupee Error Rate</td>
+<td>60</td>
+</tr>
+<tr>
+<td>4 Problem statement</td>
+<td>40</td>
+<td>12 Expected results</td>
+<td>35</td>
+</tr>
+<tr>
+<td>5 Literature survey</td>
+<td>60</td>
+<td>13 Novelty and IP</td>
+<td>30</td>
+</tr>
+<tr>
+<td>6 Research gap</td>
+<td>40</td>
+<td>14 Work plan and budget</td>
+<td>25</td>
+</tr>
+<tr>
+<td>7 Question and objectives</td>
+<td>40</td>
+<td>15 References</td>
+<td>10</td>
+</tr>
+<tr>
+<td>8 How voice entry works</td>
+<td>45</td>
+<td>16 Thank you</td>
+<td>10</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Three things to say slowly, because the marks are there:</strong> the gap (slide 6), the Rupee Error Rate rule (slide 11), and what would prove you wrong (slide 12).</p>
+<hr />
+<h2 class="keep">Slide 1: Title</h2>
+<p><strong>Goal:</strong> land the topic in one sentence, then move on. Do not read the title aloud word for word.</p>
+<ul>
+<li>"Our topic is offline voice-based khata entry for kirana stores."</li>
+<li>"In one line: can a cheap Android phone let a shopkeeper record a credit entry just by speaking, with no internet, and still get the money right?"</li>
+<li>"We build on SmartOps, the offline-first shop app we already made, so the feature has somewhere real to live."</li>
+<li>Introduce the team in four words, not four sentences.</li>
+</ul>
+<p><strong>Transition:</strong> "Here's how I'll go through it."</p>
+<p><strong>Invites:</strong> "What is SmartOps?" Answer in one line: an offline-first app for kirana shops that handles sales, stock and khata, with a local database on the phone that syncs when there is internet.</p>
+<hr />
+<h2 class="keep">Slide 2: Agenda</h2>
+<p><strong>Goal:</strong> 15 seconds. Show the shape of the talk so the panel can follow.</p>
+<ul>
+<li>"First the problem, then what others have done and the gap."</li>
+<li>"Then our question, objectives and method."</li>
+<li>"The main new idea, the Rupee Error Rate, gets its own slide."</li>
+<li>"Then expected results, novelty, plan and references."</li>
+</ul>
+<p><strong>Transition:</strong> "Starting with why this matters."</p>
+<hr />
+<h2 class="keep">Slide 3: Background</h2>
+<p><strong>Goal:</strong> establish that the problem is real and worth money, in three beats.</p>
+<ul>
+<li>"Kirana shops give goods on credit and write it in a paper khata."</li>
+<li>"Digital tools do help: in a study of 403 Indian unorganised retailers, adopting digital payment tools raised revenue by 9.6% on average."</li>
+<li>"But typing an entry while a queue waits is slow, and harder for anyone not comfortable with a phone keyboard."</li>
+<li>"Research in India has shown low-literacy users prefer voice to text, and Whisper now handles Hindi and Marathi. So voice looks like the obvious answer."</li>
+</ul>
+<p><strong>Numbers:</strong> 403 retailers, 9.6%.</p>
+<p><strong>Transition:</strong> "So why hasn't it been done? Three reasons."</p>
+<p><strong>Invites:</strong> "Don't apps like Khatabook already exist?" Answer: yes, and shopkeepers still keep the paper book, because typing at the counter is the slow part. We are not building another khata app; we are testing whether voice can replace typing offline.</p>
+<hr />
+<h2 class="keep">Slide 4: Problem statement</h2>
+<p><strong>Goal:</strong> name the three obstacles, then read the problem statement once, slowly.</p>
+<ul>
+<li>Read the boxed statement aloud once. It is the sentence the examiner will write down.</li>
+<li>"First, no internet. The good speech systems run in the cloud and shops lose signal."</li>
+<li>"Second, mixed languages. Someone will say 'Ramesh ka 250 ka udhaar add karo' in one breath, mixing Hindi and English."</li>
+<li>"Third, and this is the one people miss, money has to be exact. If 'dhai sau' is heard as 'do sau', the customer's account is 50 rupees off."</li>
+<li>"Word error rate, the usual measure, counts that the same as a wrong 'ka' or 'ko'."</li>
+</ul>
+<p><strong>Numbers:</strong> dhai sau = 250, do sau = 200, ₹50 wrong.</p>
+<p><strong>Transition:</strong> "So what has already been done about this?"</p>
+<p><strong>Invites:</strong> "Why not just ask them to type slower or train them?" Answer: the constraint is the queue, not the skill. Anything that adds seconds at the counter does not get used.</p>
+<hr />
+<h2 class="keep">Slide 5: Literature survey</h2>
+<p><strong>Goal:</strong> show you read the field and can see the pattern. Walk the table top to bottom, one line each, then land the last column.</p>
+<ul>
+<li>"These are six of the sixteen papers in our report, in time order."</li>
+<li>"2007, Medhi: text-free voice interfaces were strongly preferred by low-literacy users, but that was recorded voice, not recognition."</li>
+<li>"2020, SLURP: judge a spoken command by the details it extracts, not by words. English, and no money."</li>
+<li>"2023, Whisper: 680,000 hours of training, works across languages without task-specific training, but general speech and large models."</li>
+<li>"2023, IndicWhisper: best on 39 of 59 Indian benchmarks, but accuracy swings by domain, and none of the domains is a shop."</li>
+<li>"2025, Biswas: adapting Whisper to Hindi–English mixing, still no Marathi and not offline."</li>
+<li>"2026, Söhler: 8-bit Whisper-small is 57% smaller with no accuracy loss, but that was English, on servers."</li>
+<li>Then point at the last column: "Look at this column. Every paper leaves something open."</li>
+</ul>
+<p><strong>Numbers:</strong> 16 papers total, 6 shown; 680,000 h; 39 of 59; 57% smaller.</p>
+<p><strong>Transition:</strong> "Put those gaps together and you get a clear picture."</p>
+<p><strong>Invites:</strong> "Why these six?" Answer: one per period, chosen to show the chain. The full sixteen, with a comparison table sorted by year, is Section 2.1 of the report.</p>
+<hr />
+<h2 class="keep">Slide 6: Research gap</h2>
+<p><strong>Goal:</strong> the most important slide for marks. Say the chain, then the three missing pieces.</p>
+<ul>
+<li>"Read the literature in order and each period fixes what the last one couldn't."</li>
+<li>"2003 to 2010: voice suits these users, and word error rate is already known to be imperfect."</li>
+<li>"2019 to 2021: mixed Indian speech is hard, and you should judge a command by the details it extracts."</li>
+<li>"2022 to 2024: the big multilingual and Indian models arrive."</li>
+<li>"2025 to 2026: Whisper gets shrunk and tuned for Indian speech."</li>
+<li>"What is still missing is three things: nobody has tested short mixed Hindi–Marathi–English khata commands; nobody has tested this offline on a cheap phone; and nobody measures the error in money."</li>
+</ul>
+<p><strong>Transition:</strong> "That gives us one question."</p>
+<p><strong>Invites:</strong> "Are you sure nobody has done this?" Answer: our claim is narrow and specific, which is the safe way to claim a gap. We searched IEEE, ACL Anthology, ISCA Archive and Google Scholar, and every reference was checked on its publisher page.</p>
+<hr />
+<h2 class="keep">Slide 7: Research question and objectives</h2>
+<p><strong>Goal:</strong> read the question once, then four objectives in four short lines.</p>
+<ul>
+<li>Read the boxed question aloud.</li>
+<li>"Objective one: record about 360 khata commands from 12 speakers, where we already know the right answer because we wrote the cards."</li>
+<li>"Two: build the offline feature in SmartOps and compare it with a cloud service, with and without the customer-name hint."</li>
+<li>"Three: measure errors in rupees, and check how well word error rate predicts them."</li>
+<li>"Four: a small test where 10 people try voice against typing."</li>
+</ul>
+<p><strong>Numbers:</strong> 360 clips, 12 speakers, 10 people, 4 objectives.</p>
+<p><strong>Transition:</strong> "So here's how the feature actually works."</p>
+<p><strong>Invites:</strong> "Why one question with four objectives?" Answer: the objectives are the steps that answer it, and each maps to one hypothesis and one test. Table 1 of the report shows that mapping.</p>
+<hr />
+<h2 class="keep">Slide 8: Proposed methodology, how voice entry works</h2>
+<p><strong>Goal:</strong> walk the six steps in the diagram. Use the example sentence.</p>
+<ul>
+<li>"The shopkeeper presses a button and speaks."</li>
+<li>"Whisper turns it into text on the phone itself, with no internet."</li>
+<li>"Simple rules pick out the amount and the type. 'Paanch sau' becomes 500, and 'udhaar' means credit."</li>
+<li>"We match the name against the shop's own customer list, which is already on the phone."</li>
+<li>"The shopkeeper sees a confirm screen and taps Save, so nothing goes into the khata blindly."</li>
+<li>Then read the example at the bottom: "Sunanda tai ne saade teen hazaar jama kele' becomes Sunanda Patil, 3,500 rupees, repayment."</li>
+</ul>
+<p><strong>Transition:</strong> "That customer list is also used as a hint, and that's one of the things we test."</p>
+<p><strong>Invites:</strong> "Why rules and not an AI model for extraction?" Answer: rules run offline, are fast and are easy to check. A cloud language model would break the offline requirement.</p>
+<hr />
+<h2 class="keep">Slide 9: Conceptual framework</h2>
+<p><strong>Goal:</strong> 30 seconds. Say what we change and what we measure, and point at the arrows.</p>
+<ul>
+<li>"On the left is what we change: the speech setup, which is cloud, offline Whisper, or offline Whisper with the name hint."</li>
+<li>"In the usability test, what we change is voice against typing."</li>
+<li>"On the right is what we measure: whether the whole entry is right, the Rupee Error Rate, and time on the phone. For users, time per entry and the SUS score."</li>
+<li>"The arrows are our four hypotheses."</li>
+<li>"Language and noise may change the results, so we record them for every clip."</li>
+</ul>
+<p><strong>Invites:</strong> "What are your independent and dependent variables?" This slide is the answer, so point at it rather than reciting.</p>
+<hr />
+<h2 class="keep">Slide 10: Experiment design</h2>
+<p><strong>Goal:</strong> the three parts, then the sample-size defence. Expect a question here.</p>
+<ul>
+<li>"Part A, the test set: 12 speakers, 30 commands each, about 360 clips. Four of them are shopkeepers."</li>
+<li>"Twenty commands are read from cards and ten are said in the speaker's own words from a picture card, so we get natural phrasing too."</li>
+<li>"Part B: every clip goes through all three setups, so any difference comes from the setup, not from the speech."</li>
+<li>"Part C: 10 people do five entries by voice and five by typing, half starting with each, and we time them."</li>
+<li>"On size: because it is paired, 360 clips gives 80% power to catch a five to six point accuracy gap, and 10 people is enough for a large speed difference."</li>
+</ul>
+<p><strong>Numbers:</strong> 12 × 30 = 360; 20 read + 10 free; 3 setups; 10 people; 5 + 5 entries; 80% power.</p>
+<p><strong>Transition:</strong> "Now the part we think is new."</p>
+<p><strong>Invites:</strong> "Is 360 clips enough?" Answer: small for training a model, fine for testing one, especially because every clip is used in every setup, which is what makes the comparison paired.</p>
+<hr />
+<h2 class="keep">Slide 11: Our key idea, the Rupee Error Rate</h2>
+<p><strong>Goal:</strong> the highlight of the talk. Slow down. Use the chart.</p>
+<ul>
+<li>"Word error rate counts every wrong word the same. Watch what that hides."</li>
+<li>"The shopkeeper says 'Ramesh ko 250 udhaar'."</li>
+<li>"First output: 'Ramesh ka 250 udhaar'. One word wrong out of four, so 25% word error, and the money error is zero."</li>
+<li>"Second: 'Ramesh ko 200 udhaar'. Same 25% word error, but 50 rupees wrong."</li>
+<li>"Third: 'Suresh ko 250 udhaar'. Same 25% again, but now 500 rupees is in the wrong place, because it is missing from Ramesh and wrongly added to Suresh."</li>
+<li>"So we measure the Rupee Error Rate: how many rupees end up in the wrong place per 100 entries."</li>
+<li>"The rules are simple. Wrong amount is the difference. Wrong customer counts twice. Credit and repayment swapped is twice the amount, because the balance moves the wrong way."</li>
+<li>"And hypothesis three tests the claim directly: word error rate is only a weak guide to money error."</li>
+</ul>
+<p><strong>Numbers:</strong> 25% WER for all three; ₹0, ₹50, ₹500.</p>
+<p><strong>Transition:</strong> "So what do we expect to find?"</p>
+<p><strong>Invites:</strong> "Why does the wrong customer count twice?" Answer: two accounts are wrong. One person is missing the entry and another person wrongly has it, so the shop's books are off by the amount in two places.</p>
+<hr />
+<h2 class="keep">Slide 12: Expected results</h2>
+<p><strong>Goal:</strong> make clear these are expectations, and that each one can be proved wrong.</p>
+<ul>
+<li>"These are hypotheses, not results. We haven't run the study yet."</li>
+<li>"H1: cloud should get more entries fully right than offline, but we hope by a small gap. McNemar test."</li>
+<li>"H2: the customer-name hint should improve name accuracy, because names are rare words a general model does not expect. McNemar again."</li>
+<li>"H3: word error rate should be a weak guide to money error. Spearman rank correlation."</li>
+<li>"H4: voice should be faster than typing. Wilcoxon signed-rank."</li>
+<li>"The last column is what would prove us wrong, which is how we keep ourselves honest."</li>
+</ul>
+<p><strong>Transition:</strong> "So what's new in all this?"</p>
+<p><strong>Invites:</strong> "Why McNemar and not chi-square?" Answer: the same clip goes through both setups, so the data is paired, and McNemar is the paired version. Chi-square assumes two separate groups.</p>
+<hr />
+<h2 class="keep">Slide 13: Novelty and IP potential</h2>
+<p><strong>Goal:</strong> answer the question every panel asks: what is new?</p>
+<ul>
+<li>"Three things are new."</li>
+<li>"One, the Rupee Error Rate: scoring speech errors by the money they put in the wrong place. We found no paper that does this."</li>
+<li>"Two, the first test of offline, mixed Hindi–Marathi–English khata commands on a low-cost phone."</li>
+<li>"Three, using the shop's own customer list as a hint, and measuring how much it helps."</li>
+<li>"On IP: the measure and the hint may be protectable, so before publishing we will check with the institute's IP cell."</li>
+</ul>
+<p><strong>Invites:</strong> "Isn't the Rupee Error Rate just word error rate with extra steps?" Answer: no. Slide 11 shows three outputs with identical word error rates and money errors of 0, 50 and 500 rupees. H3 tests that difference directly.</p>
+<hr />
+<h2 class="keep">Slide 14: Work plan and budget</h2>
+<p><strong>Goal:</strong> 25 seconds. Show it is doable this semester.</p>
+<ul>
+<li>"Twelve weeks. Recording is done by week 5, accuracy results by week 8, the usability test by week 9."</li>
+<li>"That leaves three weeks for analysis and writing."</li>
+<li>"The whole budget is about 11,000 rupees, and most of that is one cheap Android phone at 6,000."</li>
+<li>"Everything else is small: cloud usage, thank-you payments to shopkeepers, printing and travel. All the software is free."</li>
+</ul>
+<p><strong>Numbers:</strong> 12 weeks, ₹11,000, ₹6,000 phone, 5 milestones.</p>
+<p><strong>Invites:</strong> "What is the biggest risk?" Answer: recruiting shopkeepers, since their time is money. That is why only four of the twelve speakers are shopkeepers, and why the sessions are short.</p>
+<hr />
+<h2 class="keep">Slide 15: References</h2>
+<p><strong>Goal:</strong> 10 seconds. Do not read them out.</p>
+<ul>
+<li>"These are the papers cited on the slides, numbered as in our report."</li>
+<li>"The report has 21 references in IEEE style, and each one was checked against its publisher page."</li>
+</ul>
+<hr />
+<h2 class="keep">Slide 16: Thank you</h2>
+<ul>
+<li>"To sum up: offline voice entry for khata, judged by the rupees it gets wrong, not just the words."</li>
+<li>"It runs in 12 weeks on about 11,000 rupees, inside an app we already built."</li>
+<li>"Thank you. Happy to take questions."</li>
+</ul>
+<hr />
+<h1>If you have more time (10 to 12 minutes)</h1>
+<p>Add these, in this order of value:</p>
+<ol>
+<li><strong>Slide 5:</strong> one extra sentence per paper about the method, for example that Whisper used weak supervision, meaning imperfect internet transcripts rather than hand-cleaned data.</li>
+<li><strong>Slide 10:</strong> describe one command card and how the correct answer is known in advance.</li>
+<li><strong>Slide 11:</strong> work through the five-entry example from the report: total money error ₹1,650 over 5 entries, so the Rupee Error Rate is ₹33,000 per 100 entries, while 40% of entries were fully right.</li>
+<li><strong>Slide 12:</strong> explain each test in one sentence, in plain words, the way they are written in the explainer.</li>
+<li><strong>Slide 14:</strong> name the ethics steps: consent forms in three languages, made-up customer names, clips stored under codes such as S07.</li>
+</ol>
+<h1>Five questions to rehearse out loud</h1>
+<ol>
+<li><strong>"What is new in your research?"</strong> The Rupee Error Rate, applied to offline mixed-language khata commands on a cheap phone.</li>
+<li><strong>"Why not just use the cloud?"</strong> We do, as the comparison. The app has to work without internet, so the question is how close offline gets.</li>
+<li><strong>"Is your sample big enough?"</strong> Paired design: 360 clips for 80% power on a five to six point gap, and 10 people each acting as their own control.</li>
+<li><strong>"How will you validate it?"</strong> Known correct answers for every clip, the same clips through every setup, and four hypotheses with named tests and stated ways to be proved wrong.</li>
+<li><strong>"What are the limitations?"</strong> One phone, one model, mostly student speakers, scripted commands and a test khata rather than a shop's real book. All of these are in the report.</li>
+</ol></body></html>

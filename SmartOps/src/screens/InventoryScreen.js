@@ -5,7 +5,7 @@ import {
     KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { getAllProducts, getStockLevels, updateProduct, setProductArchived } from '../database/actions';
+import { getAllProducts, getStockLevels, updateProduct, setProductArchived, setProductDiscount, endProductDiscount, expireEndedDiscounts } from '../database/actions';
 import { useSession } from '../services/session';
 import { Badge, EmptyState, PrimaryButton, GhostButton } from '../../components/UI';
 import { useAppBadges } from '../hooks/useAppBadges';
@@ -16,7 +16,7 @@ export default function InventoryScreen({ navigation }) {
     const [allProducts, setAllProducts] = useState([]);   // includes archived
     const [stocks, setStocks] = useState({});  // { productId: number }
     const [search, setSearch] = useState('');
-    const [filter, setFilter] = useState('all'); // 'all' | 'low' | 'out' | 'archived'
+    const [filter, setFilter] = useState('all'); // 'all' | 'low' | 'out' | 'sale' | 'archived'
     const [refreshing, setRefreshing] = useState(false);
     const [editing, setEditing] = useState(null);   // product being edited
     // Staff can't change the product's price (the server ignores it too).
@@ -26,6 +26,7 @@ export default function InventoryScreen({ navigation }) {
     const { refresh: refreshBadges, markLowStockSeen } = useAppBadges();
 
     const load = useCallback(async () => {
+        await expireEndedDiscounts();
         const everything = await getAllProducts({ includeArchived: true });
         const stockMap = await getStockLevels(everything);  // one query instead of one per product
         setAllProducts(everything);
@@ -72,6 +73,35 @@ export default function InventoryScreen({ navigation }) {
 
     const products = allProducts.filter(p => !p.archivedAt);
     const archived = allProducts.filter(p => p.archivedAt);
+    const onSaleCount = products.filter(p => p.onSale).length;
+
+    // Quick clearance from the product sheet: a % off the current price,
+    // rounded to the rupee. Owner-only (staff can't change prices).
+    function applyDiscount(pct) {
+        const product = editing;
+        const base = product.regularPrice || product.sellingPrice;
+        const salePrice = Math.round(base * (1 - pct / 100));
+        const apply = days => async () => {
+            await setProductDiscount(product.id, salePrice, { days });
+            setEditing(null);
+            load();
+        };
+        Alert.alert(
+            `${pct}% off ${product.name}?`,
+            `Price goes from ₹${base} to ₹${salePrice}. A 7-day sale goes back to ₹${base} on its own.`,
+            [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Until I end it', onPress: apply(null) },
+                { text: 'For 7 days', onPress: apply(7) },
+            ]
+        );
+    }
+
+    async function endDiscount() {
+        await endProductDiscount(editing.id);
+        setEditing(null);
+        load();
+    }
 
     function toggleArchive() {
         const product = editing;
@@ -103,7 +133,8 @@ export default function InventoryScreen({ navigation }) {
             filter === 'all' ? true :
                 filter === 'out' ? stock === 0 :
                     filter === 'low' ? stock > 0 && stock <= p.reorderLevel :
-                        true;
+                        filter === 'sale' ? p.onSale :
+                            true;
         return matchSearch && matchFilter;
     });
 
@@ -133,6 +164,7 @@ export default function InventoryScreen({ navigation }) {
                 </View>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.headerActions}>
                     {[
+                        { label: 'Insights', icon: 'insights', color: colors.teal, to: 'Insights' },
                         { label: 'New product', icon: 'add', color: colors.teal, to: 'ProductRegistration' },
                         { label: 'Alerts', icon: 'alerts', color: (lowCount + outCount) > 0 ? colors.amber : colors.textMuted, to: 'Alerts' },
                         { label: 'Reorder', icon: 'restock', to: 'Reorder' },
@@ -178,6 +210,7 @@ export default function InventoryScreen({ navigation }) {
                         { key: 'all', label: 'All' },
                         { key: 'low', label: `Low (${lowCount})` },
                         { key: 'out', label: `Out (${outCount})` },
+                        ...(onSaleCount > 0 ? [{ key: 'sale', label: `On sale (${onSaleCount})` }] : []),
                         ...(archived.length > 0 ? [{ key: 'archived', label: `Archived (${archived.length})` }] : []),
                     ].map(f => (
                         <TouchableOpacity
@@ -211,11 +244,13 @@ export default function InventoryScreen({ navigation }) {
                                         <Text style={s.productName} numberOfLines={1}>{p.name}</Text>
                                         <Text style={s.productMeta}>
                                             {p.brand ? `${p.brand} · ` : ''}{p.category} · ₹{p.sellingPrice ?? 0}/{p.unit}
+                                            {p.onSale && <Text style={s.wasPrice}>  ₹{p.regularPrice}</Text>}
                                         </Text>
                                     </View>
                                 </View>
                                 <View style={s.productRight}>
                                     <Badge label={badge.label} color={badge.color} />
+                                    {p.onSale && <Badge label="SALE" color={colors.blue} />}
                                     {stock <= p.reorderLevel && (
                                         <Text style={s.reorderHint}>reorder: {p.reorderLevel}</Text>
                                     )}
@@ -283,6 +318,30 @@ export default function InventoryScreen({ navigation }) {
                             onPress={() => { const id = editing.id; setEditing(null); navigation.navigate('StockIn', { productId: id }); }}
                             style={{ marginTop: spacing.sm }}
                         />
+                        {!staffMode && !editing?.archivedAt && (
+                            editing?.onSale ? (
+                                <View style={s.saleBox}>
+                                    <Text style={s.saleText}>
+                                        On sale at ₹{editing.sellingPrice} (normally ₹{editing.regularPrice})
+                                        {editing.saleUntil ? ` · ends ${new Date(editing.saleUntil).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}` : ''}
+                                    </Text>
+                                    <TouchableOpacity onPress={endDiscount}>
+                                        <Text style={s.saleEnd}>End sale</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            ) : (
+                                <View style={s.saleBox}>
+                                    <Text style={s.saleText}>Clearance discount</Text>
+                                    <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+                                        {[10, 20, 30].map(pct => (
+                                            <TouchableOpacity key={pct} style={s.pctChip} onPress={() => applyDiscount(pct)}>
+                                                <Text style={s.pctChipText}>{pct}% off</Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </View>
+                                </View>
+                            )
+                        )}
                         {!staffMode && (
                             <GhostButton
                                 label={editing?.archivedAt ? 'Restore product' : 'Archive product (discontinued)'}
@@ -345,7 +404,17 @@ const s = StyleSheet.create({
         marginBottom: spacing.md,
     },
 
-    filterRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg },
+    filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg },
+    wasPrice: { textDecorationLine: 'line-through', color: colors.textMuted },
+    saleBox: {
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: spacing.sm,
+        backgroundColor: colors.blueFaint, borderRadius: radius.md,
+        padding: spacing.md, marginTop: spacing.md,
+    },
+    saleText: { color: colors.blue, fontSize: font.sm, fontWeight: '600' },
+    saleEnd: { color: colors.red, fontSize: font.sm, fontWeight: '700' },
+    pctChip: { backgroundColor: colors.blue, borderRadius: radius.full, paddingHorizontal: spacing.md, paddingVertical: 6 },
+    pctChipText: { color: colors.white, fontSize: font.xs, fontWeight: '700' },
     filterChip: {
         paddingHorizontal: 14, paddingVertical: 7,
         borderRadius: radius.full, borderWidth: 1,

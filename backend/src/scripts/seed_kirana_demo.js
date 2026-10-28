@@ -371,6 +371,40 @@ function buildData() {
         }
     }
 
+    // ── v1.2 features, so every screen has something to show ──────────────────
+    // Two wrong bills voided a few days ago (one cash, one khata): the items go
+    // back on their batches as 'return' rows and the khata gets the reversal.
+    const batchById = new Map(products.flatMap(p => p.batches.map(b => [b.id, b])));
+    const voidable = mode => rows.orders.find(o => o.payment_mode === mode && !o.voided_at &&
+        o.sale_at < todayIst - 2 * DAY && o.sale_at > todayIst - 6 * DAY);
+    for (const order of [voidable('cash'), voidable('credit')].filter(Boolean)) {
+        order.voided_at = order.sale_at + 20 * 60000;
+        for (const it of rows.items.filter(i => i.order_id === order.id)) {
+            batchById.get(it.batch_id).qty += it.quantity;
+            rows.txns.push({ product_id: it.product_id, batch_id: it.batch_id, type: 'return', quantity: it.quantity, txn_at: order.voided_at });
+        }
+        if (order.payment_mode === 'credit') {
+            const c = customers.find(x => x.id === order.customer_id);
+            c.balance -= order.total_amount;
+            rows.ledger.push({ customer_id: c.id, order_id: order.id, type: 'repayment', amount: order.total_amount,
+                note: 'Bill voided', entry_at: order.voided_at });
+        }
+    }
+
+    // Slowest movers still in stock: two put on sale (one ends in 5 days),
+    // and the very slowest discontinued (archived) by the owner.
+    const slow = products.filter(p => stockOf(p) > 0).sort((a, b) => a.velocity - b.velocity);
+    slow[0].archived_at = todayIst - 3 * DAY;
+    for (const [p, until] of [[slow[1], null], [slow[2], todayIst + 5 * DAY]]) {
+        p.regular_price = p.price;
+        p.sale_price = Math.max(Math.ceil(p.cost * 1.05), Math.round(p.price * 0.85));
+        p.sale_until = until;
+    }
+
+    // A one-time customer the shopkeeper tidied away.
+    const oneOff = customers.find(c => !c.khata && c.perWeek === 0);
+    if (oneOff) oneOff.archived_at = todayIst - DAY;
+
     // One perishable batch left expired on the shelf on purpose (live "mark wasted" demo).
     const bread = products.find(p => p.barcode === '8901063342033');
     const stale = receive(bread, 3, todayIst - 6 * DAY + 7 * HOUR, supplierIds.dairy);
@@ -460,19 +494,21 @@ async function write(rows) {
         const b = r => ({ ...r, business_id: businessId, sync_status: 'synced' });
         await insertMany(client, 'suppliers', ['id', 'business_id', 'name', 'phone', 'note', 'sync_status', 'updated_at'], rows.suppliers.map(b));
         await insertMany(client, 'products',
-            ['id', 'business_id', 'name', 'category', 'barcode', 'brand', 'unit', 'reorder_level', 'schedule_h', 'selling_price', 'sync_status', 'updated_at', 'created_at'],
-            rows.products.map(p => b({ ...p, reorder_level: p.reorder, schedule_h: false, selling_price: p.price,
+            ['id', 'business_id', 'name', 'category', 'barcode', 'brand', 'unit', 'reorder_level', 'schedule_h', 'selling_price',
+                'regular_price', 'sale_until', 'archived_at', 'sync_status', 'updated_at', 'created_at'],
+            rows.products.map(p => b({ ...p, reorder_level: p.reorder, schedule_h: false, selling_price: p.sale_price ?? p.price,
+                regular_price: p.regular_price ?? null, sale_until: p.sale_until ?? null, archived_at: p.archived_at ?? null,
                 updated_at: todayIst - DAYS * DAY, created_at: new Date(todayIst - (DAYS + 40) * DAY) })));
         await insertMany(client, 'stock_batches',
             ['id', 'product_id', 'quantity', 'batch_no', 'expiry_date', 'cost_price', 'supplier_id', 'sync_status', 'created_at', 'updated_at'],
             rows.batches.map(x => ({ id: x.id, product_id: x.product.id, quantity: x.qty, batch_no: x.batch_no, expiry_date: x.expiry,
                 cost_price: x.product.cost, supplier_id: x.supplierId, sync_status: 'synced', created_at: x.at, updated_at: x.at })));
         await insertMany(client, 'customers',
-            ['id', 'business_id', 'name', 'phone', 'address', 'segment', 'last_purchase_at', 'sync_status', 'updated_at', 'created_at'],
-            rows.customers.map(c => b({ ...c, segment: 'new', last_purchase_at: c.last, updated_at: c.last || now,
+            ['id', 'business_id', 'name', 'phone', 'address', 'segment', 'last_purchase_at', 'archived_at', 'sync_status', 'updated_at', 'created_at'],
+            rows.customers.map(c => b({ ...c, segment: 'new', last_purchase_at: c.last, archived_at: c.archived_at ?? null, updated_at: c.last || now,
                 created_at: new Date(todayIst - c.createdDaysAgo * DAY) })));
-        await insertMany(client, 'sale_orders', ['id', 'business_id', 'customer_id', 'total_amount', 'payment_mode', 'sale_at', 'sync_status', 'updated_at'],
-            rows.orders.map(o => b({ ...o, updated_at: o.sale_at })));
+        await insertMany(client, 'sale_orders', ['id', 'business_id', 'customer_id', 'total_amount', 'payment_mode', 'sale_at', 'voided_at', 'sync_status', 'updated_at'],
+            rows.orders.map(o => b({ ...o, voided_at: o.voided_at ?? null, updated_at: o.voided_at || o.sale_at })));
         await insertMany(client, 'sale_items', ['id', 'order_id', 'product_id', 'batch_id', 'quantity', 'unit_price', 'updated_at'],
             rows.items.map(i => ({ ...i, id: uuidv4(), updated_at: now })));
         await insertMany(client, 'stock_transactions', ['id', 'product_id', 'batch_id', 'type', 'quantity', 'txn_at', 'sync_status', 'updated_at'],
@@ -499,7 +535,7 @@ async function write(rows) {
 // ── Main ──────────────────────────────────────────────────────────────────────
 function summary(rows) {
     const inr = x => '₹' + Math.round(x).toLocaleString('en-IN');
-    const revenue = rows.orders.reduce((s, o) => s + o.total_amount, 0);
+    const revenue = rows.orders.filter(o => !o.voided_at).reduce((s, o) => s + o.total_amount, 0);
     const byMode = m => rows.orders.filter(o => o.payment_mode === m).length;
     const owed = rows.customers.filter(c => c.balance > 0).sort((a, b) => b.balance - a.balance);
     const stock = p => p.batches.reduce((s, b) => s + b.qty, 0);
@@ -515,6 +551,9 @@ function summary(rows) {
     console.log(`  Expiring ≤3d:    ${soon.map(b => `${b.product.name} ×${b.qty}`).join(', ') || '—'}`);
     console.log(`  Khata owed:      ${owed.map(c => `${c.name} ${inr(c.balance)}`).join(', ')}`);
     console.log(`  Purchase orders: ${rows.pos.length}`);
+    console.log(`  Voided bills:    ${rows.orders.filter(o => o.voided_at).length}`);
+    console.log(`  On sale:         ${rows.products.filter(p => p.regular_price).map(p => `${p.name} ₹${p.regular_price}→₹${p.sale_price}`).join(', ')}`);
+    console.log(`  Archived:        ${rows.products.filter(p => p.archived_at).map(p => p.name).join(', ')}; customer ${rows.customers.filter(c => c.archived_at).map(c => c.name).join(', ') || '—'}`);
 }
 
 async function main() {

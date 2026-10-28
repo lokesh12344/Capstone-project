@@ -256,6 +256,13 @@ END $$ LANGUAGE plpgsql`,
     `ALTER TABLE suppliers  ADD COLUMN IF NOT EXISTS archived_at BIGINT`,
     `ALTER TABLE sale_orders ADD COLUMN IF NOT EXISTS voided_at BIGINT`,
 
+    // ── 018: clearance discounts ──────────────────────────────────────────────────
+    // A product on sale keeps its normal price here while selling_price holds the
+    // discounted one. NULL = not discounted. Ending the sale copies it back.
+    `ALTER TABLE products ADD COLUMN IF NOT EXISTS regular_price NUMERIC(10,2)`,
+    // optional end of the sale; the phone reverts the price once it passes
+    `ALTER TABLE products ADD COLUMN IF NOT EXISTS sale_until BIGINT`,
+
 ];
 
 async function migrate() {

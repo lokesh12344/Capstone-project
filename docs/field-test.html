@@ -1,0 +1,212 @@
+<title>SmartOps Field Test</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: single phone-first column, sections as checklists you tick in the shop; progress bar sticky on top */
+:root{
+  --bg:#f6f7f4; --surface:#ffffff; --fg:#17201b; --muted:#5d6a62; --line:#dde3dd;
+  --accent:#12855a; --accent-soft:#e2f3ea; --warn:#a15c00; --warn-soft:#fbefdc; --risk:#b3261e; --risk-soft:#fbe5e3;
+  --display:"Bricolage Grotesque",ui-sans-serif,system-ui,sans-serif;
+  --body:"Source Sans 3",ui-sans-serif,system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#111613; --surface:#1a211d; --fg:#e8eee9; --muted:#9aa89f; --line:#2c3630;
+  --accent:#3fcf8e; --accent-soft:#183528; --warn:#f0b357; --warn-soft:#3a2c14; --risk:#ff8a80; --risk-soft:#3d1c1a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#111613; --surface:#1a211d; --fg:#e8eee9; --muted:#9aa89f; --line:#2c3630;
+  --accent:#3fcf8e; --accent-soft:#183528; --warn:#f0b357; --warn-soft:#3a2c14; --risk:#ff8a80; --risk-soft:#3d1c1a; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font:17px/1.55 var(--body)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.wrap{max-width:720px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 64px}
+h1{font:800 clamp(2rem,7vw,2.8rem)/1.05 var(--display);margin:0 0 10px;text-wrap:balance;letter-spacing:-.02em}
+h2{font:700 1.35rem/1.2 var(--display);margin:0;text-wrap:balance}
+.lede{color:var(--muted);margin:0;max-width:60ch}
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:12px;border-bottom:1px solid var(--line);display:flex;gap:12px;align-items:center}
+.track{flex:1;height:8px;border-radius:99px;background:var(--line);overflow:hidden}
+.fill{height:100%;width:0;background:var(--accent);transition:width .25s}
+.count{font:500 .85rem var(--mono);color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+button.reset{font:600 .85rem var(--body);background:none;border:1px solid var(--line);color:var(--muted);border-radius:8px;padding:6px 10px;cursor:pointer}
+section{margin-top:36px;display:grid;gap:12px}
+.eyebrow{font:500 .75rem var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.note{color:var(--muted);margin:0}
+details{background:var(--surface);border:1px solid var(--line);border-radius:12px}
+summary{cursor:pointer;padding:14px 16px;display:flex;gap:10px;align-items:baseline;list-style:none}
+summary::-webkit-details-marker{display:none}
+summary b{font:700 1.05rem var(--display)}
+summary .where{font:500 .75rem var(--mono);color:var(--muted);margin-left:auto;white-space:nowrap}
+.body{padding:0 16px 14px;display:grid;gap:8px}
+label.chk{display:flex;gap:10px;align-items:flex-start;cursor:pointer}
+label.chk input{width:20px;height:20px;margin-top:3px;accent-color:var(--accent);flex:none}
+label.chk input:checked+span{color:var(--muted);text-decoration:line-through}
+.watch{font-size:.95rem;border-radius:8px;padding:8px 10px;background:var(--warn-soft);color:var(--fg)}
+.watch strong{color:var(--warn)}
+.gap{background:var(--risk-soft);border-radius:12px;padding:14px 16px;display:grid;gap:4px}
+.gap b{color:var(--risk);font-family:var(--display)}
+.gap p{margin:0}
+ol,ul{margin:0;padding-left:1.2em;display:grid;gap:6px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:grid;gap:8px}
+code{font:500 .9em var(--mono);background:var(--accent-soft);padding:1px 5px;border-radius:4px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){.fill{transition:none}}
+</style>
+
+<div class="wrap">
+  <h1>SmartOps Field Test</h1>
+  <p class="lede">For the team shadowing at the shop. Work through each feature with the shopkeeper, tick it off, and write down what was confusing or slow. Ticks are saved on your phone only.</p>
+
+  <div class="bar">
+    <div class="track"><div class="fill" id="fill"></div></div>
+    <span class="count" id="count">0 / 0</span>
+    <button class="reset" id="reset" type="button">Clear ticks</button>
+  </div>
+
+  <section>
+    <span class="eyebrow">Before you go</span>
+    <div class="card">
+      <label class="chk"><input type="checkbox" id="pre1"><span>APK installed on an Android phone and the app opens</span></label>
+      <label class="chk"><input type="checkbox" id="pre2"><span>Phone has mobile data. Check the server first: <code>smartops-app.duckdns.org/api/health</code> should say "ok"</span></label>
+      <label class="chk"><input type="checkbox" id="pre3"><span>Shopkeeper said yes to being recorded or photographed</span></label>
+      <label class="chk"><input type="checkbox" id="pre4"><span>One person runs the app, one takes notes and screenshots, one records a short video</span></label>
+      <label class="chk"><input type="checkbox" id="pre5"><span>Pick 10–15 real products before you start: some with barcodes, some loose (rice, dal, sugar)</span></label>
+    </div>
+  </section>
+
+  <section>
+    <span class="eyebrow">Features to show</span>
+    <p class="note">Go in this order: each step sets up data the next one needs. Let the shopkeeper hold the phone as much as possible.</p>
+
+    <details open><summary><b>Register the shop</b><span class="where">Login → Register</span></summary><div class="body">
+      <label class="chk"><input type="checkbox" id="f1a"><span>Register with the shop's real name, owner's number, password and shop type</span></label>
+      <label class="chk"><input type="checkbox" id="f1b"><span>Log out from Profile and log back in</span></label>
+      <div class="watch"><strong>Watch:</strong> Did the owner understand "shop type"? How long did sign-up take?</div>
+    </div></details>
+
+    <details><summary><b>Add products</b><span class="where">Inventory → +</span></summary><div class="body">
+      <label class="chk"><input type="checkbox" id="f2a"><span>Scan a packaged item's barcode and check whether the name auto-fills (it comes from the shared barcode catalog)</span></label>
+      <label class="chk"><input type="checkbox" id="f2b"><span>Add an item by typing the barcode by hand</span></label>
+      <label class="chk"><input type="checkbox" id="f2c"><span>Try adding a loose item that has no barcode</span></label>
+      <label class="chk"><input type="checkbox" id="f2d"><span>If it's a pharmacy, test the Schedule H drug toggle</span></label>
+      <div class="watch"><strong>Watch:</strong> Time per product. Did scanning work in shop lighting? Were category and unit choices enough?</div>
+    </div></details>
+
+    <details><summary><b>Stock In</b><span class="where">Stock In</span></summary><div class="body">
+      <label class="chk"><input type="checkbox" id="f3a"><span>Record a delivery: scan, quantity, cost price, batch number, expiry date</span></label>
+      <label class="chk"><input type="checkbox" id="f3b"><span>Check Inventory shows the new stock count</span></label>
+      <div class="watch"><strong>Watch:</strong> Batch number and expiry are required for every item. Does a kirana even have those for biscuits or loose sugar?</div>
+    </div></details>
+
+    <details><summary><b>Make a sale</b><span class="where">Green + button</span></summary><div class="body">
+      <label class="chk"><input type="checkbox" id="f4a"><span>Scan 2–3 items into the cart and change one quantity</span></label>
+      <label class="chk"><input type="checkbox" id="f4b"><span>Use "Edit price" to give a discount on one item</span></label>
+      <label class="chk"><input type="checkbox" id="f4c"><span>Pay with Cash. Do another sale paid by UPI</span></label>
+      <label class="chk"><input type="checkbox" id="f4d"><span>Scan an unknown barcode and use "Register new product" from inside the sale</span></label>
+      <label class="chk"><input type="checkbox" id="f4e"><span>Try selling something that is out of stock</span></label>
+      <div class="watch"><strong>Watch:</strong> Time a full sale and compare it with how fast they bill now. Was a customer kept waiting?</div>
+    </div></details>
+
+    <details><summary><b>Credit sale (Khata)</b><span class="where">+ → Credit, then Khata tab</span></summary><div class="body">
+      <label class="chk"><input type="checkbox" id="f5a"><span>Make a sale on credit to a new customer (name + phone)</span></label>
+      <label class="chk"><input type="checkbox" id="f5b"><span>Open Khata and check that the customer and amount owed appear</span></label>
+      <label class="chk"><input type="checkbox" id="f5c"><span>Record a partial repayment, then check the balance and history</span></label>
+      <div class="watch"><strong>Watch:</strong> Compare with their paper khata book. What do they write there that the app doesn't capture?</div>
+    </div></details>
+
+    <details><summary><b>Customers</b><span class="where">Customers</span></summary><div class="body">
+      <label class="chk"><input type="checkbox" id="f6a"><span>Add a customer with an address, then search by name and by phone</span></label>
+    </div></details>
+
+    <details><summary><b>Alerts and Smart Restock</b><span class="where">Alerts · Reorder</span></summary><div class="body">
+      <label class="chk"><input type="checkbox" id="f7a"><span>Sell an item down below its reorder level and check that it shows under Low stock</span></label>
+      <label class="chk"><input type="checkbox" id="f7b"><span>Add stock with an expiry date a few days away and check the near-expiry alert</span></label>
+      <label class="chk"><input type="checkbox" id="f7c"><span>Open Smart Restock and ask the owner whether the suggested quantities make sense</span></label>
+      <div class="watch"><strong>Watch:</strong> Would they actually check this screen every day? How do they decide what to reorder today?</div>
+    </div></details>
+
+    <details><summary><b>Day Summary and Order History</b><span class="where">Home → Day summary · Records</span></summary><div class="body">
+      <label class="chk"><input type="checkbox" id="f8a"><span>Check that Day Summary splits Cash, UPI and Credit correctly against the sales you made</span></label>
+      <label class="chk"><input type="checkbox" id="f8b"><span>Filter Order History by date and by payment mode</span></label>
+      <label class="chk"><input type="checkbox" id="f8c"><span>Ask the owner to "close the day" using the summary, the way they do now with cash in the drawer</span></label>
+    </div></details>
+
+    <details><summary><b>Offline and sync</b><span class="where">Airplane mode</span></summary><div class="body">
+      <label class="chk"><input type="checkbox" id="f9a"><span>Turn on airplane mode and make 2 sales: both should save normally</span></label>
+      <label class="chk"><input type="checkbox" id="f9b"><span>Turn the internet back on, then check the sales appear on the web dashboard under the same login</span></label>
+      <div class="watch"><strong>Watch:</strong> This is your strongest demo moment. Record it on video.</div>
+    </div></details>
+
+    <details><summary><b>Web dashboard</b><span class="where">Laptop</span></summary><div class="body">
+      <label class="chk"><input type="checkbox" id="f10a"><span>Log in to the dashboard with the shop's account and show the owner the sales charts</span></label>
+      <div class="watch"><strong>Watch:</strong> Would the owner (or their son or daughter) ever open this? On a phone or a laptop?</div>
+    </div></details>
+  </section>
+
+  <section>
+    <span class="eyebrow">Gaps to confirm</span>
+    <p class="note">Gaps we found in the code. Check whether each one actually hurts in a real shop. These become your "changes needed" slide.</p>
+    <div class="gap"><b>Sales only work by scanning</b><p>New Order has no product search. Loose items, fruit and vegetables, and items with damaged barcodes can't be billed.</p></div>
+    <div class="gap"><b>Stock In always asks for batch and expiry</b><p>Good for pharmacies, slow for kiranas. Should it be optional depending on shop type?</p></div>
+    <div class="gap"><b>No bill for the customer</b><p>There's no WhatsApp or printed receipt. Ask whether customers want one.</p></div>
+    <div class="gap"><b>No returns, deletes or edits to past sales</b><p>A mistaken sale can't be undone. Find out how often billing mistakes happen.</p></div>
+    <div class="gap"><b>English-only screens</b><p>Check whether the owner or their staff would prefer Hindi or Marathi.</p></div>
+    <div class="gap"><b>One phone per shop</b><p>If two people bill at the same time on two phones, the last edit wins. Ask whether more than one person bills.</p></div>
+  </section>
+
+  <section>
+    <span class="eyebrow">Ask the shopkeeper</span>
+    <div class="card"><ol>
+      <li>How do you track sales, stock and credit today? (Show us the notebook.)</li>
+      <li>What takes up most of your time every day?</li>
+      <li>Which screen would you use daily, and which ones never?</li>
+      <li>What was confusing or slow?</li>
+      <li>What's missing that would make you use this instead of paper?</li>
+      <li>Would you pay for this? How much per month feels fair?</li>
+      <li>Who else in the shop would use it, and how comfortable are they with phones?</li>
+      <li>How many products do you stock, and how many have barcodes?</li>
+    </ol></div>
+  </section>
+
+  <section>
+    <span class="eyebrow">Bring back for the review</span>
+    <div class="card">
+      <label class="chk"><input type="checkbox" id="b1"><span>Photos of the shopkeeper using the app (with permission)</span></label>
+      <label class="chk"><input type="checkbox" id="b2"><span>Screenshots: Home, a sale, Khata, Day Summary, Alerts, and the dashboard with real data</span></label>
+      <label class="chk"><input type="checkbox" id="b3"><span>Video of the offline sale and then the sync</span></label>
+      <label class="chk"><input type="checkbox" id="b4"><span>Numbers: products added, sales made, average seconds per sale, time to sign up</span></label>
+      <label class="chk"><input type="checkbox" id="b5"><span>The shopkeeper's answers to the questions above, in their own words</span></label>
+      <label class="chk"><input type="checkbox" id="b6"><span>Every bug or crash, with the phone model and what you tapped</span></label>
+    </div>
+  </section>
+
+  <section>
+    <span class="eyebrow">Structure for tomorrow's review</span>
+    <div class="card"><ol>
+      <li><b>Deployment:</b> which shop, how long you were there, what was used, plus photos</li>
+      <li><b>What worked:</b> features the owner liked, backed by the numbers</li>
+      <li><b>What we learned:</b> how the shop really works compared with what we assumed</li>
+      <li><b>Changes needed:</b> confirmed gaps ranked by impact (for example, product search in billing first)</li>
+      <li><b>Next steps:</b> what you'd build in the next 2–4 weeks</li>
+    </ol></div>
+  </section>
+</div>
+
+<script>
+(function(){
+  const KEY='smartops-field-test';
+  const boxes=[...document.querySelectorAll('input[type=checkbox]')];
+  let state={};
+  try{state=JSON.parse(localStorage.getItem(KEY))||{}}catch(e){}
+  const fill=document.getElementById('fill'),count=document.getElementById('count');
+  function render(){
+    const done=boxes.filter(b=>b.checked).length;
+    count.textContent=done+' / '+boxes.length;
+    fill.style.width=(done/boxes.length*100)+'%';
+  }
+  boxes.forEach(b=>{
+    b.checked=!!state[b.id];
+    b.addEventListener('change',()=>{state[b.id]=b.checked;try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){}render()});
+  });
+  document.getElementById('reset').addEventListener('click',()=>{boxes.forEach(b=>b.checked=false);state={};try{localStorage.removeItem(KEY)}catch(e){}render()});
+  render();
+})();
+</script>

@@ -190,6 +190,7 @@ const inventoryIntelligence = asyncHandler(async (req, res) => {
     const dead = buildDeadStockPayload(productStats, req.query);
     const opportunity = buildOpportunityPayload(productStats, req.query);
     const markdowns = buildMarkdownSuggestions(productStats, req.query);
+    const onSale = buildOnSalePayload(productStats);
 
     res.json({
         generated_at: Date.now(),
@@ -199,6 +200,7 @@ const inventoryIntelligence = asyncHandler(async (req, res) => {
         dead_stock: dead,
         opportunities: opportunity,
         markdowns,
+        on_sale: onSale,
     });
 });
 
@@ -220,33 +222,33 @@ async function getProductInventoryStats(businessId) {
      sales_7d AS (
        SELECT
          st.product_id,
-         COALESCE(SUM(st.quantity), 0) AS units_sold_7d
+         GREATEST(COALESCE(SUM(CASE WHEN st.type = 'sale' THEN st.quantity ELSE -st.quantity END), 0), 0) AS units_sold_7d
        FROM stock_transactions st
        JOIN products p ON p.id = st.product_id
        WHERE p.business_id = $1
-         AND st.type = 'sale'
+         AND st.type IN ('sale', 'return')   -- a voided bill's 'return' nets its sale out
          AND st.txn_at >= $2
        GROUP BY st.product_id
      ),
      sales_30d AS (
        SELECT
          st.product_id,
-         COALESCE(SUM(st.quantity), 0) AS units_sold_30d
+         GREATEST(COALESCE(SUM(CASE WHEN st.type = 'sale' THEN st.quantity ELSE -st.quantity END), 0), 0) AS units_sold_30d
        FROM stock_transactions st
        JOIN products p ON p.id = st.product_id
        WHERE p.business_id = $1
-         AND st.type = 'sale'
+         AND st.type IN ('sale', 'return')
          AND st.txn_at >= $3
        GROUP BY st.product_id
      ),
      sales_prev_30d AS (
        SELECT
          st.product_id,
-         COALESCE(SUM(st.quantity), 0) AS units_sold_prev_30d
+         GREATEST(COALESCE(SUM(CASE WHEN st.type = 'sale' THEN st.quantity ELSE -st.quantity END), 0), 0) AS units_sold_prev_30d
        FROM stock_transactions st
        JOIN products p ON p.id = st.product_id
        WHERE p.business_id = $1
-         AND st.type = 'sale'
+         AND st.type IN ('sale', 'return')
          AND st.txn_at >= $4
          AND st.txn_at < $3
        GROUP BY st.product_id
@@ -289,6 +291,8 @@ async function getProductInventoryStats(businessId) {
        p.unit,
        p.reorder_level,
        p.selling_price,
+       p.regular_price,
+       p.sale_until,
        COALESCE(stock_by_product.current_stock, 0) AS current_stock,
        COALESCE(sales_7d.units_sold_7d, 0) AS units_sold_7d,
        COALESCE(sales_30d.units_sold_30d, 0) AS units_sold_30d,
@@ -325,6 +329,8 @@ async function getProductInventoryStats(businessId) {
         unit: row.unit,
         reorder_level: toNumber(row.reorder_level),
         selling_price: toNumber(row.selling_price),
+        regular_price: row.regular_price == null ? null : toNumber(row.regular_price),
+        sale_until: row.sale_until ? Number(row.sale_until) : null,
         current_stock: Math.max(0, toNumber(row.current_stock)),
         units_sold_7d: toNumber(row.units_sold_7d),
         units_sold_30d: toNumber(row.units_sold_30d),
@@ -354,11 +360,11 @@ async function getBatchInventoryStats(businessId) {
      sales_30d AS (
        SELECT
          st.product_id,
-         COALESCE(SUM(st.quantity), 0) AS units_sold_30d
+         GREATEST(COALESCE(SUM(CASE WHEN st.type = 'sale' THEN st.quantity ELSE -st.quantity END), 0), 0) AS units_sold_30d
        FROM stock_transactions st
        JOIN products p ON p.id = st.product_id
        WHERE p.business_id = $1
-         AND st.type = 'sale'
+         AND st.type IN ('sale', 'return')   -- a voided bill's 'return' nets its sale out
          AND st.txn_at >= $2
        GROUP BY st.product_id
      )
@@ -376,7 +382,7 @@ async function getBatchInventoryStats(businessId) {
      FROM batch_stock bs
      JOIN products p ON p.id = bs.product_id
      LEFT JOIN sales_30d ON sales_30d.product_id = bs.product_id
-     WHERE p.business_id = $1`,
+     WHERE p.business_id = $1 AND p.archived_at IS NULL`,
         [businessId, Date.now() - 30 * DAY_MS]
     );
 
@@ -603,6 +609,7 @@ function buildMarkdownSuggestions(productStats, queryParams = {}) {
         const status = getDeadStockStatus(product, daysSinceLastSale, daysWithoutSale);
 
         if (product.current_stock <= 0) return null;      // nothing to clear
+        if (product.regular_price) return null;            // already on sale
         if (status === 'healthy') return null;             // only slow movers / dead stock
         if (cost <= 0 || sellingPrice <= cost) return null; // no cost data, or already at/below cost
 
@@ -641,6 +648,35 @@ function buildMarkdownSuggestions(productStats, queryParams = {}) {
             markdown_count: items.length,
             blocked_cost_value: round(items.reduce((sum, item) => sum + item.blocked_cost_value, 0)),
             potential_recovery_value: round(items.reduce((sum, item) => sum + item.current_stock * item.suggested_price, 0)),
+        },
+        items,
+    };
+}
+
+// Products currently discounted from the app (regular_price set), with how
+// they've sold since — so the owner can see whether a markdown is working.
+function buildOnSalePayload(productStats) {
+    const now = Date.now();
+    const items = productStats
+        .filter(p => p.regular_price && p.regular_price > p.selling_price && (!p.sale_until || p.sale_until > now))
+        .map(p => ({
+            product_id: p.id,
+            name: p.name,
+            category: p.category,
+            unit: p.unit,
+            regular_price: round(p.regular_price),
+            sale_price: round(p.selling_price),
+            discount_pct: round(((p.regular_price - p.selling_price) / p.regular_price) * 100),
+            sale_until: p.sale_until,
+            current_stock: round(p.current_stock),
+            units_sold_7d: round(p.units_sold_7d),
+        }))
+        .sort((a, b) => b.discount_pct - a.discount_pct);
+
+    return {
+        summary: {
+            on_sale_count: items.length,
+            stock_value_at_sale: round(items.reduce((sum, i) => sum + i.current_stock * i.sale_price, 0)),
         },
         items,
     };

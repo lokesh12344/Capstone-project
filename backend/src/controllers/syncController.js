@@ -30,6 +30,8 @@ const pull = asyncHandler(async (req, res) => {
           reorder_level, schedule_h,
           selling_price::FLOAT  AS selling_price,
           archived_at::FLOAT    AS archived_at,
+          regular_price::FLOAT  AS regular_price,
+          sale_until::FLOAT     AS sale_until,
           sync_status,
           updated_at::FLOAT     AS updated_at
          FROM products
@@ -186,8 +188,8 @@ const push = asyncHandler(async (req, res) => {
             await client.query(
                 `INSERT INTO products
            (id, business_id, name, category, barcode, brand, unit,
-            reorder_level, schedule_h, selling_price, archived_at, sync_status, updated_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$13,'synced',$11)
+            reorder_level, schedule_h, selling_price, archived_at, regular_price, sale_until, sync_status, updated_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$13,$15,$17,'synced',$11)
          ON CONFLICT (id) DO UPDATE SET
            name           = EXCLUDED.name,
            category       = EXCLUDED.category,
@@ -200,12 +202,17 @@ const push = asyncHandler(async (req, res) => {
            selling_price  = CASE WHEN $12 THEN products.selling_price ELSE EXCLUDED.selling_price END,
            -- archiving is owner-only; older apps don't send the field at all
            archived_at    = CASE WHEN $14 AND NOT $12 THEN EXCLUDED.archived_at ELSE products.archived_at END,
+           -- starting/ending a discount is a price change, so owner-only too
+           regular_price  = CASE WHEN $16 AND NOT $12 THEN EXCLUDED.regular_price ELSE products.regular_price END,
+           sale_until     = CASE WHEN $18 AND NOT $12 THEN EXCLUDED.sale_until ELSE products.sale_until END,
            sync_status    = 'synced',
            updated_at     = EXCLUDED.updated_at`,
                 [p.id, businessId, p.name, p.category, p.barcode || null, p.brand || null,
                 p.unit, p.reorder_level ?? 5, p.schedule_h ?? false,
                 p.selling_price ?? 0, p.updated_at ?? now, isStaff,
-                p.archived_at || null, 'archived_at' in p]
+                p.archived_at || null, 'archived_at' in p,
+                p.regular_price || null, 'regular_price' in p,
+                p.sale_until || null, 'sale_until' in p]
             );
         }
 

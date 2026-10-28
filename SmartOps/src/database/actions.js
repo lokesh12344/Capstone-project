@@ -86,6 +86,68 @@ export async function getAllProducts({ includeArchived = false } = {}) {
     return includeArchived ? rows : active(rows);
 }
 
+// Clearance discount: the normal price is parked in regular_price and
+// selling_price drops to the sale price, so New Order, bills and khata all
+// pick it up with no other changes. Re-discounting keeps the original
+// regular price; endProductDiscount puts it back.
+export async function setProductDiscount(productId, salePrice, { days } = {}) {
+    const now = Date.now();
+    const result = await database.write(async () => {
+        const product = await database.get('products').find(productId);
+        return product.update(p => {
+            if (!p.regularPrice) p.regularPrice = p.sellingPrice;
+            p.sellingPrice = salePrice;
+            p.saleUntil = days ? now + days * 86400000 : null;
+            p.syncStatus = PENDING;
+            p.updatedAt = now;
+        });
+    });
+    syncAfterWrite();
+    return result;
+}
+
+export async function endProductDiscount(productId) {
+    const now = Date.now();
+    const result = await database.write(async () => {
+        const product = await database.get('products').find(productId);
+        return product.update(p => {
+            if (p.regularPrice) p.sellingPrice = p.regularPrice;
+            p.regularPrice = null;
+            p.saleUntil = null;
+            p.syncStatus = PENDING;
+            p.updatedAt = now;
+        });
+    });
+    syncAfterWrite();
+    return result;
+}
+
+// Timed sales end on their own: run on app start and when Inventory opens.
+// Returns how many products went back to their normal price.
+export async function expireEndedDiscounts() {
+    const now = Date.now();
+    const bId = getBusinessId();
+    if (!bId) return 0;
+    const rows = await database.get('products')
+        .query(Q.where('business_id', bId))
+        .fetch();
+    const ended = rows.filter(p => p.regularPrice && p.saleUntil && p.saleUntil <= now);
+    if (ended.length === 0) return 0;
+    await database.write(async () => {
+        for (const product of ended) {
+            await product.update(p => {
+                p.sellingPrice = p.regularPrice;
+                p.regularPrice = null;
+                p.saleUntil = null;
+                p.syncStatus = PENDING;
+                p.updatedAt = now;
+            });
+        }
+    });
+    syncAfterWrite();
+    return ended.length;
+}
+
 // Discontinued items leave Inventory, Alerts, Reorder and the sale/PO pickers;
 // pass archived=false to bring one back.
 export async function setProductArchived(productId, archived) {

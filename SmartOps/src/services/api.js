@@ -77,4 +77,8 @@ export const AnalyticsAPI = {
     topProducts: (limit) => apiFetch(`/analytics/top-products?limit=${limit || 10}`),
     customers: () => apiFetch('/analytics/customers'),
     reorder: (limit) => apiFetch(`/analytics/inventory/reorder-suggestions?limit=${limit || 20}`),
+    markdowns: () => apiFetch('/analytics/inventory/markdowns?limit=20'),
+    deadStock: () => apiFetch('/analytics/inventory/dead-stock?limit=20'),
+    stockRisk: () => apiFetch('/analytics/inventory/stock-risk?limit=20'),
+    expiryRisk: () => apiFetch('/analytics/inventory/expiry-risk?limit=20'),
 };

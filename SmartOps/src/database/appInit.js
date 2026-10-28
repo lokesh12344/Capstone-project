@@ -1,6 +1,7 @@
 import database from './index';
 import { restoreSession, startAutoSync, getAuthToken } from '../sync/syncEngine';
 import { loadSession, saveSession } from '../services/session';
+import { expireEndedDiscounts } from './actions';
 import { BusinessAPI } from '../services/api';
 
 function wait(ms) {
@@ -20,6 +21,9 @@ export async function initApp() {
     } catch (err) {
         console.log('DB warmup error:', err.message);
     }
+
+    // Put timed sales that ended while the app was closed back to full price.
+    await expireEndedDiscounts().catch(err => console.log('Sale expiry error:', err.message));
 
     // 3. Extra buffer (Watermelon internal setup)
     await wait(500);

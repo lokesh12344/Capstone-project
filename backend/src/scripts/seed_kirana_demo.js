@@ -297,7 +297,7 @@ function buildData() {
         const times = [];
         for (let i = 0; i < orderCount; i++) {
             const h = chance(0.42) ? 7 + rand() * 4 : chance(0.7) ? 17 + rand() * 4.5 : 11 + rand() * 6;
-            const t = dayStart + h * HOUR;
+            const t = Math.round(dayStart + h * HOUR);   // BIGINT columns reject fractional ms
             if (t < now - 2 * 60000) times.push(t);
         }
         times.sort((a, b) => a - b);
